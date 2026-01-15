@@ -1,0 +1,18 @@
+# 1. 先忽略根目录下的所有内容
+/*
+
+# 2. 排除（即保留）你想要的文件和文件夹
+!/init.el
+!/lisp/
+!/.gitignore
+
+# 3. 如果你有 early-init.el 也可以保留（可选）
+!/early-init.el
+
+# 4. 针对 lisp 文件夹，忽略掉 Emacs 自动生成的编译文件 (.elc)
+/lisp/*.elc
+
+# 5. 忽略 lisp 文件夹内可能产生的备份文件
+/lisp/*~
+/lisp/\#*\#
+
