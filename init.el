@@ -33,6 +33,7 @@
 (require 'init-project)    ; Magit/Projectile
 (require 'init-dev)        ; 合并了 LSP/Flycheck/Completion/Treesitter
 (require 'init-direnv)
+(require 'init-term)
 
 ;; --- 模拟层 (最后加载) ---
 (require 'init-evil)

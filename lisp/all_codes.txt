@@ -1,0 +1,991 @@
+========================================
+FILE: init-benchmarking.el
+========================================
+;;; init-benchmarking.el --- Measure startup and require times -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(defun sanityinc/time-subtract-millis (b a)
+  (* 1000.0 (float-time (time-subtract b a))))
+
+
+(defvar sanityinc/require-times nil
+  "A list of (FEATURE LOAD-START-TIME LOAD-DURATION).
+LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
+
+(defun sanityinc/require-times-wrapper (orig feature &rest args)
+  "Note in `sanityinc/require-times' the time taken to require each feature."
+  (let* ((already-loaded (memq feature features))
+         (require-start-time (and (not already-loaded) (current-time))))
+    (prog1
+        (apply orig feature args)
+      (when (and (not already-loaded) (memq feature features))
+        (let ((time (sanityinc/time-subtract-millis (current-time) require-start-time)))
+          (add-to-list 'sanityinc/require-times
+                       (list feature require-start-time time)
+                       t))))))
+
+(advice-add 'require :around 'sanityinc/require-times-wrapper)
+
+(define-derived-mode sanityinc/require-times-mode tabulated-list-mode "Require-Times"
+  "Show times taken to `require' packages."
+  (setq tabulated-list-format
+        [("Start time (ms)" 20 sanityinc/require-times-sort-by-start-time-pred)
+         ("Feature" 30 t)
+         ("Time (ms)" 12 sanityinc/require-times-sort-by-load-time-pred)])
+  (setq tabulated-list-sort-key (cons "Start time (ms)" nil))
+  ;; (setq tabulated-list-padding 2)
+  (setq tabulated-list-entries #'sanityinc/require-times-tabulated-list-entries)
+  (tabulated-list-init-header)
+  (when (fboundp 'tablist-minor-mode)
+    (tablist-minor-mode)))
+
+(defun sanityinc/require-times-sort-by-start-time-pred (entry1 entry2)
+  (< (string-to-number (elt (nth 1 entry1) 0))
+     (string-to-number (elt (nth 1 entry2) 0))))
+
+(defun sanityinc/require-times-sort-by-load-time-pred (entry1 entry2)
+  (> (string-to-number (elt (nth 1 entry1) 2))
+     (string-to-number (elt (nth 1 entry2) 2))))
+
+(defun sanityinc/require-times-tabulated-list-entries ()
+  (cl-loop for (feature start-time millis) in sanityinc/require-times
+           with order = 0
+           do (cl-incf order)
+           collect (list order
+                         (vector
+                          (format "%.3f" (sanityinc/time-subtract-millis start-time before-init-time))
+                          (symbol-name feature)
+                          (format "%.3f" millis)))))
+
+(defun sanityinc/require-times ()
+  "Show a tabular view of how long various libraries took to load."
+  (interactive)
+  (with-current-buffer (get-buffer-create "*Require Times*")
+    (sanityinc/require-times-mode)
+    (tabulated-list-revert)
+    (display-buffer (current-buffer))))
+
+
+
+(defun sanityinc/show-init-time ()
+  (message "init completed in %.2fms"
+           (sanityinc/time-subtract-millis after-init-time before-init-time)))
+
+(add-hook 'after-init-hook 'sanityinc/show-init-time)
+
+
+(provide 'init-benchmarking)
+;;; init-benchmarking.el ends here
+
+
+
+========================================
+FILE: init-dev.el
+========================================
+;;; init-dev.el --- Unified Development Environment -*- lexical-binding: t -*-
+;;; Code:
+(require 'init-treesitter)
+;; 1. 编程基础行为
+(electric-pair-mode t)                       ; 自动补全括号
+(add-hook 'prog-mode-hook #'show-paren-mode) ; 高亮对应括号
+(add-hook 'prog-mode-hook #'hs-minor-mode)   ; 代码折叠
+;; === Tab 智能缩进与补全方案 ===
+;; 原理：按下 Tab 时，如果当前位置可以缩进就缩进；如果是单词末尾则触发 Eglot/Company 补全
+(setq-default tab-width 4)          ; 缩进宽度为 4
+(setq tab-always-indent 'complete)  ; 【关键】Tab 键先缩进，再尝试补全
+
+(use-package eglot
+  :ensure nil
+  :hook ((python-ts-mode . eglot-ensure)
+         (c-ts-mode      . eglot-ensure)
+         (c++-ts-mode    . eglot-ensure)
+         (js-ts-mode     . eglot-ensure)
+         (typescript-ts-mode . eglot-ensure)
+         (tsx-ts-mode    . eglot-ensure)
+         (go-ts-mode     . eglot-ensure)
+         (sh-mode        . eglot-ensure) ; Bash
+	     (rust-ts-mode   . eglot-ensure)
+         (ruby-ts-mode   . eglot-ensure)
+         (haskell-ts-mode . eglot-ensure)
+         (json-ts-mode   . eglot-ensure)
+         (cmake-mode     . eglot-ensure))
+  :config
+  (setq eglot-events-buffer-size 0) ; 提高性能
+  (setq eglot-autoshutdown t)
+
+  (let ((map eglot-mode-map))
+    (define-key map (kbd "C-c l r") 'eglot-rename)
+    (define-key map (kbd "C-c l a") 'eglot-code-actions)
+    (define-key map (kbd "C-c l f") 'eglot-format-buffer)))
+;; 2. 补全增强 (仍使用 Company)
+(use-package company
+  :ensure t
+  :init (global-company-mode)
+  :config
+  (setq company-idle-delay 0.1             ; 补全弹出更快
+        company-minimum-prefix-length 1    ; 输入 1 个字符就开始补全
+        company-tooltip-align-annotations t))
+;; 3. 语法检查 (Eglot 默认使用 Flymake)
+;; 如果你坚持想用 Flycheck，需要安装 `exec-path-from-shell` 并配置兼容层
+;; 但建议尝试原生的 Flymake：
+(use-package flymake
+  :ensure nil
+  :bind (("M-n" . flymake-goto-next-error)
+         ("M-p" . flymake-goto-prev-error)))
+;; 4. Consult 集成 (用 consult-eglot 替换 consult-lsp)
+(use-package consult-eglot
+  :ensure t
+  :after (eglot consult))
+
+;; 6. Yasnippet
+(use-package yasnippet
+  :ensure t
+  :init (yas-global-mode 1))
+(use-package yasnippet-snippets :ensure t)
+
+
+(use-package treemacs
+ :ensure t
+ :defer t
+ :config
+ (treemacs-tag-follow-mode)
+ :bind
+ (:map global-map
+    ("M-0"    . treemacs-select-window)
+    ("C-x t 1"  . treemacs-delete-other-windows)
+    ("C-x t t"  . treemacs)
+    ("C-x t B"  . treemacs-bookmark)
+    ;; ("C-x t C-t" . treemacs-find-file)
+    ("C-x t M-t" . treemacs-find-tag))
+ (:map treemacs-mode-map
+	("/" . treemacs-advanced-helpful-hydra)))
+
+(use-package treemacs-projectile
+ :ensure t
+ :after (treemacs projectile))
+
+
+(provide 'init-dev)
+
+
+
+========================================
+FILE: init-direnv.el
+========================================
+;;; init-direnv.el --- Integrate with direnv -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(when (maybe-require-package 'envrc)
+  (with-eval-after-load 'envrc
+    (define-key envrc-mode-map (kbd "C-c e") 'envrc-command-map))
+  (add-hook 'after-init-hook 'envrc-global-mode))
+
+(provide 'init-direnv)
+
+;;; init-direnv.el ends here
+
+
+
+========================================
+FILE: init-elpa.el
+========================================
+;;; init-elpa.el --- Settings and helpers for package.el -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(require 'package)
+(require 'cl-lib)
+
+
+;;; Install into separate package dirs for each Emacs version, to prevent bytecode incompatibility
+(setq package-user-dir
+      (expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
+                        user-emacs-directory))
+
+
+;;; Standard package repositories
+
+;; 1. 先用 setq 定义清华镜像源（这会覆盖掉 Emacs 默认的 gnu 源，确保在中国访问顺畅）
+(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+                         ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
+                         ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
+;; 2. 保留并修改 Purcell 原有的代码：
+;; 注意这里的最后一个参数是 t，意思是“追加到列表末尾”
+;; 我们把原有的官方源改个名字（比如叫 melpa-upstream），作为备用
+(add-to-list 'package-archives '("melpa-upstream" . "https://melpa.org/packages/") t)
+(add-to-list 'package-unsigned-archives "melpa")
+;; Official MELPA Mirror, in case necessary.
+;;(add-to-list 'package-archives (cons "melpa-mirror" (concat proto "://www.mirrorservice.org/sites/melpa.org/packages/")) t)
+
+;; Allow built-in packages to be upgraded
+(setq package-install-upgrade-built-in t)
+
+
+;; Work-around for https://debbugs.gnu.org/cgi/bugreport.cgi?bug=34341
+(when (and (version< emacs-version "26.3") (boundp 'libgnutls-version) (>= libgnutls-version 30604))
+  (setq gnutls-algorithm-priority "NORMAL:-VERS-TLS1.3"))
+
+
+;;; On-demand installation of packages
+
+(defun require-package (package &optional min-version no-refresh)
+  "Install given PACKAGE, optionally requiring MIN-VERSION.
+If NO-REFRESH is non-nil, the available package lists will not be
+re-downloaded in order to locate PACKAGE."
+  (when (stringp min-version)
+    (setq min-version (version-to-list min-version)))
+  (or (package-installed-p package min-version)
+      (let* ((known (cdr (assoc package package-archive-contents)))
+             (best (car (sort known (lambda (a b)
+                                      (version-list-<= (package-desc-version b)
+                                                       (package-desc-version a)))))))
+        (if (and best (version-list-<= min-version (package-desc-version best)))
+            (package-install best)
+          (if no-refresh
+              (error "No version of %s >= %S is available" package min-version)
+            (package-refresh-contents)
+            (require-package package min-version t)))
+        (package-installed-p package min-version))))
+
+(defun maybe-require-package (package &optional min-version no-refresh)
+  "Try to install PACKAGE, and return non-nil if successful.
+In the event of failure, return nil and print a warning message.
+Optionally require MIN-VERSION.  If NO-REFRESH is non-nil, the
+available package lists will not be re-downloaded in order to
+locate PACKAGE."
+  (condition-case err
+      (require-package package min-version no-refresh)
+    (error
+     (message "Couldn't install optional package `%s': %S" package err)
+     nil)))
+
+
+;;; Fire up package.el
+
+(setq package-enable-at-startup nil)
+(setq package-native-compile t)
+(package-initialize)
+
+
+;; package.el updates the saved version of package-selected-packages correctly only
+;; after custom-file has been loaded, which is a bug. We work around this by adding
+;; the required packages to package-selected-packages after startup is complete.
+
+(defvar sanityinc/required-packages nil)
+
+(defun sanityinc/note-selected-package (oldfun package &rest args)
+  "If OLDFUN reports PACKAGE was successfully installed, note that fact.
+The package name is noted by adding it to
+`sanityinc/required-packages'.  This function is used as an
+advice for `require-package', to which ARGS are passed."
+  (let ((available (apply oldfun package args)))
+    (prog1
+        available
+      (when available
+        (add-to-list 'sanityinc/required-packages package)))))
+
+(advice-add 'require-package :around 'sanityinc/note-selected-package)
+
+
+;; Work around an issue in Emacs 29 where seq gets implicitly
+;; reinstalled via the rg -> transient dependency chain, but fails to
+;; reload cleanly due to not finding seq-25.el, breaking first-time
+;; start-up
+;; See https://debbugs.gnu.org/cgi/bugreport.cgi?bug=67025
+(when (string= "29.1" emacs-version)
+  (defun sanityinc/reload-previously-loaded-with-load-path-updated (orig pkg-desc)
+    (let ((load-path (cons (package-desc-dir pkg-desc) load-path)))
+      (funcall orig pkg-desc)))
+
+  (advice-add 'package--reload-previously-loaded :around
+              'sanityinc/reload-previously-loaded-with-load-path-updated))
+
+
+
+(when (fboundp 'package--save-selected-packages)
+  (require-package 'seq)
+  (add-hook 'after-init-hook
+            (lambda ()
+              (package--save-selected-packages
+               (seq-uniq (append sanityinc/required-packages package-selected-packages))))))
+
+
+(let ((package-check-signature nil))
+  (require-package 'gnu-elpa-keyring-update))
+
+
+(defun sanityinc/set-tabulated-list-column-width (col-name width)
+  "Set any column with name COL-NAME to the given WIDTH."
+  (when (> width (length col-name))
+    (cl-loop for column across tabulated-list-format
+             when (string= col-name (car column))
+             do (setf (elt column 1) width))))
+
+(defun sanityinc/maybe-widen-package-menu-columns ()
+  "Widen some columns of the package menu table to avoid truncation."
+  (when (boundp 'tabulated-list-format)
+    (sanityinc/set-tabulated-list-column-width "Version" 13)
+    (let ((longest-archive-name (apply 'max (mapcar 'length (mapcar 'car package-archives)))))
+      (sanityinc/set-tabulated-list-column-width "Archive" longest-archive-name))))
+
+(add-hook 'package-menu-mode-hook 'sanityinc/maybe-widen-package-menu-columns)
+
+
+(provide 'init-elpa)
+;;; init-elpa.el ends here
+
+
+
+========================================
+FILE: init-enhance.el
+========================================
+;;; init-enhance.el --- UI and Modern Completion Stack -*- lexical-binding: t -*-
+;;; Commentary:
+;;; This file replaces Ivy/Counsel with the Vertico + Consult + Embark stack.
+;;; Code:
+
+;; =============================================================================
+;; 1. 基础 UI 与体验增强 (保持原有功能)
+;; =============================================================================
+(use-package emacs
+  :init
+  (recentf-mode 1)
+  (savehist-mode 1)
+  (save-place-mode 1)
+  (global-auto-revert-mode 1)
+  (setq use-dialog-box nil)
+  (setq history-length 25))
+
+(use-package dashboard
+  :ensure t
+  :config
+  (setq dashboard-banner-logo-title "Welcome to Emacs!")
+  (setq dashboard-startup-banner 'official)
+  (setq dashboard-items '((recents . 5)
+                          (bookmarks . 5)
+                          (projects . 10)))
+  (dashboard-setup-startup-hook))
+
+(use-package highlight-symbol
+  :ensure t
+  :bind ("<f3>" . highlight-symbol))
+
+(use-package rainbow-delimiters
+  :ensure t
+  :hook (prog-mode . rainbow-delimiters-mode))
+
+;; =============================================================================
+;; 2. Vertico 补全全家桶 (替代 Ivy/Counsel)
+;; =============================================================================
+
+;; Vertico: 提供垂直补全界面 (替代 Ivy 界面)
+(use-package vertico
+  :ensure t
+  :init
+  (vertico-mode 1)
+  :config
+  (setq vertico-cycle t))
+
+;; Orderless: 模糊匹配策略 (替代 Ivy 的匹配算法)
+(use-package orderless
+  :ensure t
+  :custom
+  (completion-styles '(orderless basic))
+  (completion-category-overrides '((file (styles basic partial-completion)))))
+
+;; Marginalia: 补全列表侧边栏 (显示函数说明、文件权限等)
+(use-package marginalia
+  :ensure t
+  :init
+  (marginalia-mode 1))
+
+;; Consult: 增强型搜索命令 (完全替代 Counsel 和 Swiper)
+(use-package consult
+  :ensure t
+  :bind (;; 替换 Swiper
+         ("C-s" . consult-line)
+         ;; 替换 Counsel 的常用命令
+         ("M-y" . consult-yank-pop)      ; 替换 counsel-yank-pop
+         ("C-x b" . consult-buffer)      ; 替换 switch-to-buffer
+         ("C-c r" . consult-recent-file) ; 替换 counsel-recentf
+         ("M-g i" . consult-imenu)       ; 快速跳转函数
+         ("M-g g" . consult-goto-line)   ; 跳转行
+         
+         ;; --- 修复 M-s 冲突的部分 ---
+         ;; 我们将这些命令绑定到 search-map (通常就是 M-s 键)
+         :map search-map
+         ("r" . consult-ripgrep)         ; 对应 M-s r
+         ("g" . consult-git-grep))       ; 对应 M-s g
+  :hook (completion-list-mode . consult-preview-at-point-mode)
+  :init
+  ;; 这一行强制让 M-s 成为前缀键，防止 Purcell 框架或其他配置占用它
+  (define-key global-map (kbd "M-s") search-map))
+
+;; Embark: “右键菜单”功能，允许在补全项上执行多种动作
+(use-package embark
+  :ensure t
+  :bind (("C-." . embark-act)         ; 触发动作
+         ("M-." . embark-dwim)        ; 智能动作
+         ("C-h B" . embark-bindings)) ; 查看所有快捷键
+  :init
+  (setq prefix-help-command #'embark-prefix-help-command))
+
+;; 让 Embark 和 Consult 配合使用
+(use-package embark-consult
+  :ensure t
+  :after (embark consult)
+  :demand t)
+
+;; Wgrep: 允许在 grep/ripgrep 结果 buffer 中直接修改文件 (类似 ivy-occur)
+(use-package wgrep
+  :ensure t
+  :config
+  (setq wgrep-auto-save-buffer t))
+
+(provide 'init-enhance)
+;;; init-enhance.el ends here
+
+
+
+========================================
+FILE: init-evil.el
+========================================
+;;; init-evil.el --- Vim emulation and compatibility -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+;; 1.撤销系统配置
+(use-package undo-fu
+  :ensure t
+  :config
+  ;; 如果你觉得撤销/重做的回显太烦，可以把 minibuffer 消息关掉，不用管
+  )
+
+(use-package vundo
+  :ensure t
+  :bind ("C-x u" . vundo) ; 绑定到 C-x u，或者你想用的任何键
+  :config
+  (setq vundo-glyph-alist vundo-unicode-symbols))
+
+;; 2. Evil 核心配置
+(use-package evil
+  :ensure t
+  :init
+  (setq evil-want-integration t)
+  (setq evil-want-keybinding nil)
+  (setq evil-undo-system 'undo-fu)
+  ;; --- 【关键：在 Insert 模式保留 Emacs 快捷键】 ---
+  ;; 告诉 Evil 不要拦截 Insert 模式下的按键
+  (setq evil-disable-insert-state-bindings t)
+  :config
+  (evil-mode 1)
+  ;; 确保在 Insert 模式下 ESC 依然能回到 Normal 模式
+  (define-key evil-insert-state-map [escape] 'evil-normal-state)
+  (define-key evil-normal-state-map (kbd "[ SPC") (lambda () (interactive) (evil-insert-newline-above) (forward-line)))
+  (define-key evil-normal-state-map (kbd "] SPC") (lambda () (interactive) (evil-insert-newline-below) (forward-line -1)))
+
+  (define-key evil-normal-state-map (kbd "[ b") 'previous-buffer)
+  (define-key evil-normal-state-map (kbd "] b") 'next-buffer)
+  (define-key evil-motion-state-map (kbd "[ b") 'previous-buffer)
+  (define-key evil-motion-state-map (kbd "] b") 'next-buffer)
+  ;; s -> 输入 1 或 2 个字符后根据提示跳转
+  (define-key evil-normal-state-map (kbd "s") 'avy-goto-char-timer)
+  ;; 在可视化模式 (Visual Mode) 也能跳，方便快速选区
+  (define-key evil-visual-state-map (kbd "s") 'avy-goto-char-timer)
+  ;; Eglot 相关快捷键绑定 (Normal 模式下生效)
+  (with-eval-after-load 'eglot
+    (evil-define-key 'normal eglot-mode-map (kbd "g d") 'eglot-find-definition)
+    (evil-define-key 'normal eglot-mode-map (kbd "g r") 'xref-find-references)
+    (evil-define-key 'normal eglot-mode-map (kbd "K")   'eldoc)))
+  
+;; 3. Evil Collection
+(use-package evil-collection
+  :ensure t
+  :after evil
+  :config
+  (evil-collection-init))
+
+(use-package iedit
+  :ensure t
+  :init
+  (setq iedit-toggle-key-default nil)
+  :config
+  (define-key iedit-mode-keymap (kbd "M-h") 'iedit-restrict-function)
+  (define-key iedit-mode-keymap (kbd "M-i") 'iedit-restrict-current-line))
+
+(use-package evil-multiedit
+  :ensure t
+  :commands (evil-multiedit-default-keybinds)
+  :init
+  (evil-multiedit-default-keybinds))
+
+(use-package evil-surround
+  :ensure t
+  :init
+  (global-evil-surround-mode 1))
+
+(use-package emacs
+  :bind* ("C-/" . comment-line))
+
+
+;;; esc quits
+(defun minibuffer-keyboard-quit ()
+  "Abort recursive edit.
+In Delete Selection mode, if the mark is active, just deactivate it;
+then it takes a second \\[keyboard-quit] to abort the minibuffer."
+  (interactive)
+  (if (and delete-selection-mode transient-mark-mode mark-active)
+      (setq deactivate-mark  t)
+    (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
+    (abort-recursive-edit)))
+(define-key evil-normal-state-map [escape] 'keyboard-quit)
+(define-key evil-visual-state-map [escape] 'keyboard-quit)
+(define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-must-match-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-isearch-map [escape] 'minibuffer-keyboard-quit)
+
+
+(provide 'init-evil)
+;;; init-evil.el ends here
+
+
+
+========================================
+FILE: init-exec-path.el
+========================================
+;;; init-exec-path.el --- Set up exec-path to help Emacs find programs  -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(require-package 'exec-path-from-shell)
+
+(with-eval-after-load 'exec-path-from-shell
+  (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG" "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH"))
+    (add-to-list 'exec-path-from-shell-variables var)))
+
+
+(when (or (memq window-system '(mac ns x pgtk))
+          (unless (memq system-type '(ms-dos windows-nt))
+            (daemonp)))
+  (exec-path-from-shell-initialize))
+
+(provide 'init-exec-path)
+;;; init-exec-path.el ends here
+
+
+
+========================================
+FILE: init-locales.el
+========================================
+;;; init-locales.el --- Configure default locale -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(defun sanityinc/locale-var-encoding (v)
+  "Return the encoding portion of the locale string V, or nil if missing."
+  (when v
+    (save-match-data
+      (let ((case-fold-search t))
+        (when (string-match "\\.\\([^.]*\\)\\'" v)
+          (intern (downcase (match-string 1 v))))))))
+
+(dolist (varname '("LC_ALL" "LANG" "LC_CTYPE"))
+  (let ((encoding (sanityinc/locale-var-encoding (getenv varname))))
+    (unless (memq encoding '(nil utf8 utf-8))
+      (message "Warning: non-UTF8 encoding in environment variable %s may cause interop problems with this Emacs configuration." varname))))
+
+(when (fboundp 'set-charset-priority)
+  (set-charset-priority 'unicode))
+(prefer-coding-system 'utf-8)
+(setq locale-coding-system 'utf-8)
+(unless (eq system-type 'windows-nt)
+  (set-selection-coding-system 'utf-8))
+
+(provide 'init-locales)
+;;; init-locales.el ends here
+
+
+
+========================================
+FILE: init-project.el
+========================================
+;;; init-project.el --- Project management and Git -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+;; Projectile: 项目管理
+(use-package projectile
+  :ensure t
+  :init
+  (projectile-mode +1)
+  :bind (:map projectile-mode-map
+              ("C-c p" . projectile-command-map)))
+
+;; Magit: 最好的 Git 客户端
+(use-package magit
+  :ensure t
+  :bind ("C-x g" . magit-status))
+
+(provide 'init-project)
+;;; init-project.el ends here
+
+
+
+========================================
+FILE: init-site-lisp.el
+========================================
+;;; init-site-lisp.el --- Support elisp manually installed in the site-lisp dir -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+;;; Set load path
+
+(require 'cl-lib)
+
+(defun sanityinc/add-subdirs-to-load-path (parent-dir)
+  "Add every non-hidden subdir of PARENT-DIR to `load-path'."
+  (let ((default-directory parent-dir))
+    (setq load-path
+          (append
+           (cl-remove-if-not
+            #'file-directory-p
+            (directory-files (expand-file-name parent-dir) t "^[^\\.]"))
+           load-path))))
+
+;; Add both site-lisp and its immediate subdirs to `load-path'
+(let ((site-lisp-dir (expand-file-name "site-lisp/" user-emacs-directory)))
+  (push site-lisp-dir load-path)
+  (sanityinc/add-subdirs-to-load-path site-lisp-dir))
+
+;;; Utilities for grabbing upstream libs
+
+(defun site-lisp-dir-for (name)
+  (expand-file-name (format "site-lisp/%s" name) user-emacs-directory))
+
+(defun site-lisp-library-el-path (name)
+  (expand-file-name (format "%s.el" name) (site-lisp-dir-for name)))
+
+(defun download-site-lisp-module (name url)
+  (let ((dir (site-lisp-dir-for name)))
+    (message "Downloading %s from %s" name url)
+    (unless (file-directory-p dir)
+      (make-directory dir t))
+    (add-to-list 'load-path dir)
+    (let ((el-file (site-lisp-library-el-path name)))
+      (url-copy-file url el-file t nil)
+      el-file)))
+
+(defun ensure-lib-from-url (name url)
+  (unless (site-lisp-library-loadable-p name)
+    (byte-compile-file (download-site-lisp-module name url))))
+
+(defun site-lisp-library-loadable-p (name)
+  "Return whether or not the library `name' can be loaded from a
+source file under ~/.emacs.d/site-lisp/name/"
+  (let ((f (locate-library (symbol-name name))))
+    (and f (string-prefix-p (file-name-as-directory (site-lisp-dir-for name)) f))))
+
+
+(provide 'init-site-lisp)
+;;; init-site-lisp.el ends here
+
+
+
+========================================
+FILE: init-tools.el
+========================================
+;;; init-tools.el --- Specialized Utilities -*- lexical-binding: t -*-
+;;; Code:
+
+;; 跳转与窗口
+(use-package avy
+  :ensure t
+  :config
+  (setq avy-timeout-seconds 0.3)
+  (setq avy-all-windows t))
+
+(use-package ace-window
+  :ensure t
+  :bind ("C-x o" . ace-window))
+
+;; 增强帮助
+(use-package which-key :ensure t :init (which-key-mode))
+(use-package helpful
+  :ensure t
+  :bind (("C-h f" . helpful-function)
+         ("C-h v" . helpful-variable)
+         ("C-h k" . helpful-key)))
+
+;; 滚动优化
+(use-package good-scroll :ensure t :if window-system :init (good-scroll-mode))
+
+(provide 'init-tools)
+
+
+
+========================================
+FILE: init-treesitter.el
+========================================
+;; init-treesitter.el --- Native Treesitter Configuration -*- lexical-binding: t -*-
+;; 1. 配置 treesit-auto 插件
+;; 它会自动管理语法解析器的下载地址和 Mode 的映射
+(when (maybe-require-package 'treesit-auto)
+  (require 'treesit-auto)
+  
+  ;; 如果你有特定的解析器源码需求（比如默认地址连不上），可以在这里补充，否则不需要写。
+ (setq treesit-language-source-alist
+      '(;; --- 官方 Tree-sitter 组织提供的解析器 ---
+        (c "https://github.com/tree-sitter/tree-sitter-c")
+        (cpp "https://github.com/tree-sitter/tree-sitter-cpp")
+        (c-sharp "https://github.com/tree-sitter/tree-sitter-c-sharp")
+        (bash "https://github.com/tree-sitter/tree-sitter-bash")
+        (css "https://github.com/tree-sitter/tree-sitter-css")
+        (go "https://github.com/tree-sitter/tree-sitter-go")
+        (gomod "https://github.com/camdencheek/tree-sitter-go-mod")
+        (haskell "https://github.com/tree-sitter/tree-sitter-haskell")
+        (html "https://github.com/tree-sitter/tree-sitter-html")
+        (java "https://github.com/tree-sitter/tree-sitter-java")
+        (javascript "https://github.com/tree-sitter/tree-sitter-javascript" "master" "src")
+        (json "https://github.com/tree-sitter/tree-sitter-json")
+        (julia "https://github.com/tree-sitter/tree-sitter-julia")
+        (lua "https://github.com/tree-sitter/tree-sitter-lua")
+        (ocaml "https://github.com/tree-sitter/tree-sitter-ocaml" "master" "ocaml/src")
+        (php "https://github.com/tree-sitter/tree-sitter-php" "master" "php/src")
+        (python "https://github.com/tree-sitter/tree-sitter-python")
+        (ruby "https://github.com/tree-sitter/tree-sitter-ruby")
+        (rust "https://github.com/tree-sitter/tree-sitter-rust")
+        (scala "https://github.com/tree-sitter/tree-sitter-scala")
+        (swift "https://github.com/tree-sitter/tree-sitter-swift")
+        (tsx "https://github.com/tree-sitter/tree-sitter-typescript" "master" "tsx/src")
+        (typescript "https://github.com/tree-sitter/tree-sitter-typescript" "master" "typescript/src")
+        (yaml "https://github.com/tree-sitter/tree-sitter-yaml")
+        
+        ;; --- 实用解析器 (Regex, SQL, JSDoc 等) ---
+        (regex "https://github.com/tree-sitter/tree-sitter-regex")
+        (jsdoc "https://github.com/tree-sitter/tree-sitter-jsdoc")
+        (sql "https://github.com/lo-tp/tree-sitter-sql")
+        ;; --- 社区维护的解析器 ---
+        (cmake "https://github.com/uyha/tree-sitter-cmake")
+        (common-lisp "https://github.com/theHamsta/tree-sitter-commonlisp")
+        (dockerfile "https://github.com/camdencheek/tree-sitter-dockerfile")
+        (elisp "https://github.com/Wilfred/tree-sitter-elisp")
+        (make "https://github.com/alemuller/tree-sitter-make")
+        (markdown "https://github.com/ikatyang/tree-sitter-markdown")
+        (markdown-inline "https://github.com/ikatyang/tree-sitter-markdown")
+        (mermaid "https://github.com/monaqa/tree-sitter-mermaid")
+        (toml "https://github.com/ikatyang/tree-sitter-toml")
+        (vue "https://github.com/ikatyang/tree-sitter-vue")
+        (yaml "https://github.com/ikatyang/tree-sitter-yaml")))  ;; 默认安装所有支持的语言
+  (setq treesit-auto-install 'prompt) ; 如果缺解析器，打开文件时会询问是否安装
+  
+  ;; 开启全局模式：自动将 python-mode 映射到 python-ts-mode 等
+  (global-treesit-auto-mode t))
+;; 2. 界面美化设置
+;; 设置语法高亮等级 (1-4)，4 最为丰富
+(setq treesit-font-lock-level 4)
+;; 3. 兼容性补丁（可选）
+;; 某些插件（如某些开发工具）可能还在寻找旧的模式名，这里做一个后备
+(setq treesit-extra-load-path `(,(expand-file-name "tree-sitter" user-emacs-directory)))
+(provide 'init-treesitter)
+;;; init-treesitter.el ends here
+
+
+
+========================================
+FILE: init-ui.el
+========================================
+;;; init-ui.el --- UI settings, Themes and Fonts -*- lexical-binding: t -*-
+;; 1. 基础界面清理
+(setq confirm-kill-emacs #'yes-or-no-p
+      make-backup-files nil
+      use-dialog-box nil)
+;; (when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+;; (when (fboundp 'set-scroll-bar-mode) (set-scroll-bar-mode nil))
+;; (menu-bar-mode -1)
+;; 2. 行号与视觉反馈
+(global-display-line-numbers-mode 1)
+(setq display-line-numbers-type 'relative)
+(column-number-mode t)
+(global-hl-line-mode 1)
+(fset 'yes-or-no-p 'y-or-n-p)
+(setq visible-bell 1)
+;; 3. 插件：图标库与状态栏
+(use-package nerd-icons
+  :ensure t
+  :if (display-graphic-p))
+(use-package nerd-icons-dired
+  :ensure t
+  :hook (dired-mode . nerd-icons-dired-mode))
+(use-package doom-modeline
+  :ensure t
+  :init (doom-modeline-mode 1)
+  :config
+  (setq doom-modeline-icon t
+        doom-modeline-major-mode-icon t))
+(use-package monokai-theme 
+  :ensure t 
+  :config (load-theme 'monokai t))
+;; 4. 字体设置
+(defun my/setup-font ()
+  (interactive)
+  (let* ((font-size 16)
+         ;; 英文/基础字体
+         (efl '("0xProto Nerd Font Mono" "Cascadia Mono" "JetBrains Mono" "Monaco" "Consolas"))
+         ;; 中文字体
+         (cfl '("Microsoft YaHei" "STHeiti" "SimSun"))
+         ;; 符号/图标字体
+         (sfl '("Symbols Nerd Font Mono" "Apple Color Emoji" "Segoe UI Emoji"))
+         
+         (ef (cl-find-if (lambda (f) (member f (font-family-list))) efl))
+         (cf (cl-find-if (lambda (f) (member f (font-family-list))) cfl))
+         (sf (cl-find-if (lambda (f) (member f (font-family-list))) sfl)))
+    ;; A. 设置默认字体
+    (when ef
+      (set-face-attribute 'default nil :family ef :height 140))
+    ;; B. 设置中文字体 (han 字符集)
+    (when cf
+      (set-fontset-font t 'han (font-spec :family cf))
+      (set-fontset-font t 'cjk-misc (font-spec :family cf))
+      (setq face-font-rescale-alist `((,cf . 1.2))))
+    ;; C. 设置符号字体 (注意：Elisp 中十六进制必须用 #x 开头)
+    (when sf
+      ;; 基础符号
+      (set-fontset-font t 'symbol (font-spec :family sf))
+      ;; Nerd Fonts 常用图标范围 (PUA 区域)
+      (set-fontset-font t' (#xe000 . #xf8ff) (font-spec :family sf))
+      ;; 更多符号
+      (set-fontset-font t '(#x2100 . #x2bcf) (font-spec :family sf))
+      ;; Emoji 范围
+      (set-fontset-font t '(#x1f000 . #x1faf0) (font-spec :family sf)))
+   ));; 确保在 GUI 环境下正确加载
+(if (daemonp)
+    (add-hook 'after-make-frame-functions (lambda (frame) (with-selected-frame frame (my/setup-font))))
+  (add-hook 'window-setup-hook #'my/setup-font))
+(provide 'init-ui)
+
+
+
+========================================
+FILE: init-utils.el
+========================================
+;;; init-utils.el --- Elisp helper functions and commands -*- lexical-binding: t -*-
+;;; Commentary:
+;;; Code:
+
+(defun sanityinc/display-buffer-full-frame (buffer alist)
+  "If it's not visible, display buffer full-frame, saving the prior window config.
+The saved config will be restored when the window is quit later.
+BUFFER and ALIST are as for `display-buffer-full-frame'."
+  (let ((initial-window-configuration (current-window-configuration)))
+    (or (display-buffer-reuse-window buffer alist)
+        (let ((full-window (display-buffer-full-frame buffer alist)))
+          (prog1
+              full-window
+            (set-window-parameter full-window 'sanityinc/previous-config initial-window-configuration))))))
+
+(defun sanityinc/maybe-restore-window-configuration (orig &optional kill window)
+  (let* ((window  (or window (selected-window)))
+         (to-restore (window-parameter window 'sanityinc/previous-config)))
+    (set-window-parameter window 'sanityinc/previous-config nil)
+    (funcall orig kill window)
+    (when to-restore
+      (set-window-configuration to-restore))))
+
+(advice-add 'quit-window :around 'sanityinc/maybe-restore-window-configuration)
+
+(defmacro sanityinc/fullframe-mode (mode)
+  "Configure buffers that open in MODE to display in full-frame."
+  `(add-to-list 'display-buffer-alist
+                (cons (cons 'major-mode ,mode)
+                      (list 'sanityinc/display-buffer-full-frame))))
+
+(sanityinc/fullframe-mode 'package-menu-mode)
+
+
+;; Handier way to add modes to auto-mode-alist
+(defun add-auto-mode (mode &rest patterns)
+  "Add entries to `auto-mode-alist' to use `MODE' for all given file `PATTERNS'."
+  (dolist (pattern patterns)
+    (add-to-list 'auto-mode-alist (cons pattern mode))))
+
+(defun sanityinc/remove-auto-mode (mode)
+  "Remove entries from `auto-mode-alist' that are for `MODE'."
+  (setq auto-mode-alist (seq-remove (lambda (x) (eq mode (cdr x))) auto-mode-alist)))
+
+;; Like diminish, but for major modes
+(defun sanityinc/set-major-mode-name (name)
+  "Override the major mode NAME in this buffer."
+  (setq-local mode-name name))
+
+(defun sanityinc/major-mode-lighter (mode name)
+  (add-hook (derived-mode-hook-name mode)
+            (apply-partially 'sanityinc/set-major-mode-name name)))
+
+
+;; String utilities missing from core emacs
+
+(defun sanityinc/string-all-matches (regex str &optional group)
+  "Find all matches for `REGEX' within `STR', returning the full match string or group `GROUP'."
+  (let ((result nil)
+        (pos 0)
+        (group (or group 0)))
+    (while (string-match regex str pos)
+      (push (match-string group str) result)
+      (setq pos (match-end group)))
+    result))
+
+
+
+;; Delete the current file
+
+(defun delete-this-file ()
+  "Delete the current file, and kill the buffer."
+  (interactive)
+  (unless (buffer-file-name)
+    (error "No file is currently being edited"))
+  (when (yes-or-no-p (format "Really delete '%s'?"
+                             (file-name-nondirectory buffer-file-name)))
+    (delete-file (buffer-file-name))
+    (kill-this-buffer)))
+
+
+
+;; Rename the current file
+
+(if (fboundp 'rename-visited-file)
+    (defalias 'rename-this-file-and-buffer 'rename-visited-file)
+  (defun rename-this-file-and-buffer (new-name)
+    "Renames both current buffer and file it's visiting to NEW-NAME."
+    (interactive "sNew name: ")
+    (let ((name (buffer-name))
+          (filename (buffer-file-name)))
+      (unless filename
+        (error "Buffer '%s' is not visiting a file!" name))
+      (progn
+        (when (file-exists-p filename)
+          (rename-file filename new-name 1))
+        (set-visited-file-name new-name)
+        (rename-buffer new-name)))))
+
+
+;; Browse current HTML file
+
+(defun browse-current-file ()
+  "Open the current file as a URL using `browse-url'."
+  (interactive)
+  (let ((file-name (buffer-file-name)))
+    (if (and (fboundp 'tramp-tramp-file-p)
+             (tramp-tramp-file-p file-name))
+        (error "Cannot open tramp file")
+      (browse-url (concat "file://" file-name)))))
+
+
+(provide 'init-utils)
+;;; init-utils.el ends here
+
+
+

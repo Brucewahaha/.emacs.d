@@ -1,18 +1,35 @@
 ;;; init-dev.el --- Unified Development Environment -*- lexical-binding: t -*-
 ;;; Code:
-
 (require 'init-treesitter)
+;; 1. 编程基础行为
+(electric-pair-mode t)                       ; 自动补全括号
+(add-hook 'prog-mode-hook #'show-paren-mode) ; 高亮对应括号
+(add-hook 'prog-mode-hook #'hs-minor-mode)   ; 代码折叠
+;; === Tab 智能缩进与补全方案 ===
+;; 原理：按下 Tab 时，如果当前位置可以缩进就缩进；如果是单词末尾则触发 Eglot/Company 补全
+(setq-default indent-tabs-mode nil) ; 使用空格代替 Tab 字符
+(setq-default tab-width 4)          ; 缩进宽度为 4
+(setq tab-always-indent 'complete)  ; 【关键】Tab 键先缩进，再尝试补全
+
 (use-package eglot
   :ensure nil
   :hook ((python-ts-mode . eglot-ensure)
          (c-ts-mode      . eglot-ensure)
          (c++-ts-mode    . eglot-ensure)
          (js-ts-mode     . eglot-ensure)
-         (typescript-ts-mode . eglot-ensure))
+         (typescript-ts-mode . eglot-ensure)
+         (tsx-ts-mode    . eglot-ensure)
+         (go-ts-mode     . eglot-ensure)
+         (sh-mode        . eglot-ensure) ; Bash
+	     (rust-ts-mode   . eglot-ensure)
+         (ruby-ts-mode   . eglot-ensure)
+         (haskell-ts-mode . eglot-ensure)
+         (json-ts-mode   . eglot-ensure)
+         (cmake-mode     . eglot-ensure))
   :config
-  (setq eglot-events-buffer-size 0)
+  (setq eglot-events-buffer-size 0) ; 提高性能
   (setq eglot-autoshutdown t)
-  
+
   (let ((map eglot-mode-map))
     (define-key map (kbd "C-c l r") 'eglot-rename)
     (define-key map (kbd "C-c l a") 'eglot-code-actions)
@@ -21,7 +38,10 @@
 (use-package company
   :ensure t
   :init (global-company-mode)
-  :config (setq company-idle-delay 0.0 company-minimum-prefix-length 1))
+  :config
+  (setq company-idle-delay 0.1             ; 补全弹出更快
+        company-minimum-prefix-length 1    ; 输入 1 个字符就开始补全
+        company-tooltip-align-annotations t))
 ;; 3. 语法检查 (Eglot 默认使用 Flymake)
 ;; 如果你坚持想用 Flycheck，需要安装 `exec-path-from-shell` 并配置兼容层
 ;; 但建议尝试原生的 Flymake：

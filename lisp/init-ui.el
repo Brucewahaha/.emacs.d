@@ -1,12 +1,11 @@
 ;;; init-ui.el --- UI settings, Themes and Fonts -*- lexical-binding: t -*-
 ;; 1. 基础界面清理
-(setq inhibit-startup-screen t
-      confirm-kill-emacs #'yes-or-no-p
+(setq confirm-kill-emacs #'yes-or-no-p
       make-backup-files nil
       use-dialog-box nil)
-(when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-(when (fboundp 'set-scroll-bar-mode) (set-scroll-bar-mode nil))
-(menu-bar-mode -1)
+;; (when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
+;; (when (fboundp 'set-scroll-bar-mode) (set-scroll-bar-mode nil))
+;; (menu-bar-mode -1)
 ;; 2. 行号与视觉反馈
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-type 'relative)

@@ -12,7 +12,6 @@
   (savehist-mode 1)
   (save-place-mode 1)
   (global-auto-revert-mode 1)
-  (setq use-dialog-box nil)
   (setq history-length 25))
 
 (use-package dashboard
@@ -92,7 +91,8 @@
 ;; 让 Embark 和 Consult 配合使用
 (use-package embark-consult
   :ensure t
-  :after (embark consult))
+  :after (embark consult)
+  :demand t)
 
 ;; Wgrep: 允许在 grep/ripgrep 结果 buffer 中直接修改文件 (类似 ivy-occur)
 (use-package wgrep

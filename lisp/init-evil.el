@@ -2,17 +2,18 @@
 ;;; Commentary:
 ;;; Code:
 
-;; 1. 撤销系统配置 (合并了你之前的两个 undo-tree 段落)
-(use-package undo-tree
+;; 1.撤销系统配置
+(use-package undo-fu
   :ensure t
-  :diminish
-  :init
-  (global-undo-tree-mode 1)
   :config
-  ;; 关闭自动保存历史文件，防止文件夹被 .undo 文件塞满
-  (setq undo-tree-auto-save-history nil)
-  ;; 限制撤销树目录 (如果开启自动保存的话)
-  (setq undo-tree-history-directory-alist '(("." . "~/.emacs.d/undo"))))
+  ;; 如果你觉得撤销/重做的回显太烦，可以把 minibuffer 消息关掉，不用管
+  )
+
+(use-package vundo
+  :ensure t
+  :bind ("C-x u" . vundo) ; 绑定到 C-x u，或者你想用的任何键
+  :config
+  (setq vundo-glyph-alist vundo-unicode-symbols))
 
 ;; 2. Evil 核心配置
 (use-package evil
@@ -20,7 +21,7 @@
   :init
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)
-  (setq evil-undo-system 'undo-tree)
+  (setq evil-undo-system 'undo-fu)
   ;; --- 【关键：在 Insert 模式保留 Emacs 快捷键】 ---
   ;; 告诉 Evil 不要拦截 Insert 模式下的按键
   (setq evil-disable-insert-state-bindings t)
@@ -73,6 +74,26 @@
 
 (use-package emacs
   :bind* ("C-/" . comment-line))
+
+
+;;; esc quits
+(defun minibuffer-keyboard-quit ()
+  "Abort recursive edit.
+In Delete Selection mode, if the mark is active, just deactivate it;
+then it takes a second \\[keyboard-quit] to abort the minibuffer."
+  (interactive)
+  (if (and delete-selection-mode transient-mark-mode mark-active)
+      (setq deactivate-mark  t)
+    (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
+    (abort-recursive-edit)))
+(define-key evil-normal-state-map [escape] 'keyboard-quit)
+(define-key evil-visual-state-map [escape] 'keyboard-quit)
+(define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-must-match-map [escape] 'minibuffer-keyboard-quit)
+(define-key minibuffer-local-isearch-map [escape] 'minibuffer-keyboard-quit)
+
 
 (provide 'init-evil)
 ;;; init-evil.el ends here
