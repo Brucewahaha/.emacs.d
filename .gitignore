@@ -5,7 +5,7 @@
 !/init.el
 !/lisp/
 !/.gitignore
-!/site-lisp
+!/site-lisp/
 !/early-init.el
 
 # 3. 如果你有 early-init.el 也可以保留（可选）
