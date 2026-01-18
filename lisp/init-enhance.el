@@ -44,18 +44,36 @@
   :config
   (setq vertico-cycle t))
 
+
+(use-package pinyinlib
+  :ensure t)
+
 ;; Orderless: 模糊匹配策略 (替代 Ivy 的匹配算法)
 (use-package orderless
   :ensure t
   :custom
   (completion-styles '(orderless basic))
-  (completion-category-overrides '((file (styles basic partial-completion)))))
+  (completion-category-overrides '((file (styles basic partial-completion))))
+  :config
+  ;; 添加拼音支持函数
+  (defun completion--regex-pinyin (str)
+    (orderless-regexp (pinyinlib-build-regexp-string str)))
+  ;; 将拼音匹配加入到 orderless 策略中 (按需开启，这里设为第二个匹配项)
+  (setq orderless-matching-styles '(orderless-literal orderless-regexp)))
 
 ;; Marginalia: 补全列表侧边栏 (显示函数说明、文件权限等)
 (use-package marginalia
   :ensure t
   :init
   (marginalia-mode 1))
+
+;; --- 深度整合 Savehist ---
+(use-package savehist
+  :init
+  (savehist-mode 1)
+  :config
+  ;; 记得把 vertico 的历史也存下来
+  (add-to-list 'savehist-additional-variables 'vertico-repeat-history))
 
 ;; Consult: 增强型搜索命令 (完全替代 Counsel 和 Swiper)
 (use-package consult

@@ -50,7 +50,7 @@
     (when cf
       (set-fontset-font t 'han (font-spec :family cf))
       (set-fontset-font t 'cjk-misc (font-spec :family cf))
-      (setq face-font-rescale-alist `((,cf . 1.2))))
+      (setq face-font-rescale-alist `((,cf . 1))))
     ;; C. 设置符号字体 (注意：Elisp 中十六进制必须用 #x 开头)
     (when sf
       ;; 基础符号
