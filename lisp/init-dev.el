@@ -10,6 +10,10 @@
 (setq-default indent-tabs-mode nil) ; 使用空格代替 Tab 字符
 (setq-default tab-width 4)          ; 缩进宽度为 4
 (setq tab-always-indent 'complete)  ; 【关键】Tab 键先缩进，再尝试补全
+(setq-default c-basic-offset 4) ; 针对传统的 c-mode / c++-mode
+;; 如果使用 tree-sitter 版的 mode (c++-ts-mode)，有时需要单独设置：
+(add-hook 'c++-ts-mode-hook (lambda () (setq-local c-ts-mode-indent-offset 4)))
+(add-hook 'c-ts-mode-hook (lambda () (setq-local c-ts-mode-indent-offset 4)))
 
 ;; 拷贝粘贴设置
 (setq select-enable-primary nil)        ; 选择文字时不拷贝
@@ -30,10 +34,10 @@
   :config
   ;; Emacs空闲是否自动保存，这里不设置
   (setq super-save-auto-save-when-idle nil)
-  ;; 切换窗口自动保存
-  (add-to-list 'super-save-triggers 'other-window)
-  ;; 查找文件时自动保存
-  (add-to-list 'super-save-hook-triggers 'find-file-hook)
+  ;; ;; 切换窗口自动保存
+  ;; (add-to-list 'super-save-triggers 'other-window)
+  ;; ;; 查找文件时自动保存
+  ;; (add-to-list 'super-save-hook-triggers 'find-file-hook)
   ;; 远程文件编辑不自动保存
   (setq super-save-remote-files nil)
   ;; 特定后缀名的文件不自动保存
@@ -120,6 +124,10 @@
 
   :custom
   (corfu-cycle t)                ;; Enable cycling for `corfu-next/previous'
+  (corfu-auto t)
+  (corfu-auto-delay 0.1)
+  (corfu-auto-prefix 2)
+  (corfu-preview-current nil)
   )
 
 ;;Cape 插件提供了一系列开箱即用的补全后端，跟corfu联合使用。
