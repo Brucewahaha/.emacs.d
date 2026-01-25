@@ -22,5 +22,9 @@
 (unless (eq system-type 'windows-nt)
   (set-selection-coding-system 'utf-8))
 
+(when (eq system-type 'windows-nt)
+  (setq selection-coding-system 'utf-16le-dos) ; 修复剪贴板中文乱码
+  (set-next-selection-coding-system 'utf-16le-dos))
+
 (provide 'init-locales)
 ;;; init-locales.el ends here

@@ -13,6 +13,7 @@
 (global-hl-line-mode 1)
 (fset 'yes-or-no-p 'y-or-n-p)
 (setq visible-bell 1)
+(global-tab-line-mode 1)
 ;; 3. 插件：图标库与状态栏
 (use-package nerd-icons
   :ensure t
