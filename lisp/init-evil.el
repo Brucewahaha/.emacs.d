@@ -22,9 +22,12 @@
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)
   (setq evil-undo-system 'undo-fu)
+  ;; 确保 C-u 保持为 Vim 的翻页功能
+  (setq evil-want-C-u-scroll t)
   ;; --- 【关键：在 Insert 模式保留 Emacs 快捷键】 ---
   ;; 告诉 Evil 不要拦截 Insert 模式下的按键
   (setq evil-disable-insert-state-bindings t)
+
   :config
   (evil-mode 1)
   ;; 确保在 Insert 模式下 ESC 依然能回到 Normal 模式
@@ -40,6 +43,7 @@
   (define-key evil-normal-state-map (kbd "s") 'avy-goto-char-timer)
   ;; 在可视化模式 (Visual Mode) 也能跳，方便快速选区
   (define-key evil-visual-state-map (kbd "s") 'avy-goto-char-timer)
+  
   ;; Eglot 相关快捷键绑定 (Normal 模式下生效)
   (with-eval-after-load 'eglot
     (evil-define-key 'normal eglot-mode-map (kbd "g d") 'eglot-find-definition)

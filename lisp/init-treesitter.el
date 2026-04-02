@@ -4,6 +4,7 @@
 (when (maybe-require-package 'treesit-auto)
   (require 'treesit-auto)
   
+ (setq treesit-auto-install t)
   ;; 如果你有特定的解析器源码需求（比如默认地址连不上），可以在这里补充，否则不需要写。
  (setq treesit-language-source-alist
       '(;; --- 官方 Tree-sitter 组织提供的解析器 ---
@@ -46,8 +47,25 @@
         (toml "https://github.com/ikatyang/tree-sitter-toml")
         (vue "https://github.com/ikatyang/tree-sitter-vue")
         (yaml "https://github.com/ikatyang/tree-sitter-yaml")))  ;; 默认安装所有支持的语言
-  (setq treesit-auto-install 'prompt) ; 如果缺解析器，打开文件时会询问是否安装
-  
+  ;; (setq treesit-auto-install 'prompt) ; 如果缺解析器，打开文件时会询问是否安装
+  ;; 强制重映射（解决询问问题的核心）
+  (setq major-mode-remap-alist
+        '((c-mode          . c-ts-mode)
+          (c++-mode        . c++-ts-mode)
+          (c-or-c++-mode   . c-ts-mode) 
+          (python-mode     . python-ts-mode)
+          (bash-mode       . bash-ts-mode)
+          (js-mode         . js-ts-mode)
+          (typescript-mode . typescript-ts-mode)
+          (json-mode       . json-ts-mode)
+          (cmake-mode      . cmake-ts-mode)))
+
+  ;; 显式文件后缀关联
+  (add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-ts-mode))
+  (add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-ts-mode))
+  (add-to-list 'auto-mode-alist '("\\.c\\'"   . c-ts-mode))
+  ;; 如果你的 .h 也是 C++，可以把下面这行改为 c++-ts-mode
+  (add-to-list 'auto-mode-alist '("\\.h\\'"   . c-ts-mode))
   ;; 开启全局模式：自动将 python-mode 映射到 python-ts-mode 等
   (global-treesit-auto-mode t))
 ;; 2. 界面美化设置

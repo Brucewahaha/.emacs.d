@@ -5,13 +5,41 @@
 (electric-pair-mode t)                       ; 自动补全括号
 (add-hook 'prog-mode-hook #'show-paren-mode) ; 高亮对应括号
 (add-hook 'prog-mode-hook #'hs-minor-mode)   ; 代码折叠
+
 ;; === Tab 智能缩进与补全方案 ===
-;; 原理：按下 Tab 时，如果当前位置可以缩进就缩进；如果是单词末尾则触发 Eglot/Company 补全
-(setq-default indent-tabs-mode nil) ; 使用空格代替 Tab 字符
-(setq-default tab-width 4)          ; 缩进宽度为 4
+;; 在 init-dev.el 中添加 editorconfig 支持
+(use-package editorconfig
+  :ensure t
+  :config
+  (editorconfig-mode 1))
+
+;; 优化 Tab 行为：如果选中了区域，则缩进选区；否则执行智能缩进/补全
+(setq-default indent-tabs-mode nil) ; 默认使用空格
+(setq-default tab-width 4)
 (setq tab-always-indent 'complete)  ; 【关键】Tab 键先缩进，再尝试补全
+(setq-default standard-indent 4)
+
 (setq-default c-basic-offset 4) ; 针对传统的 c-mode / c++-mode
-;; 如果使用 tree-sitter 版的 mode (c++-ts-mode)，有时需要单独设置：
+(setq-default c++-basic-offset 4)
+
+(use-package dtrt-indent
+  :ensure t
+  :diminish
+  :hook (after-init . dtrt-indent-global-mode)
+  :config
+  (setq dtrt-indent-verbosity 0)) ; 减少在 minibuffer 里的提示
+
+(use-package indent-bars
+  :ensure t
+  :hook (prog-mode . indent-bars-mode)
+  :custom
+  (indent-bars-width-frac 0.1)  ; 对齐线的宽度
+  (indent-bars-pad-frac 0.1)    ; 间距
+  (indent-bars-pattern " .  ")  ; 样式
+  (indent-bars-zigzag nil))     ; 是否使用锯齿线
+
+(electric-indent-mode 1) ; 开启回车自动缩进对齐
+;; ;; 如果使用 tree-sitter 版的 mode (c++-ts-mode)，有时需要单独设置：
 (add-hook 'c++-ts-mode-hook (lambda () (setq-local c-ts-mode-indent-offset 4)))
 (add-hook 'c-ts-mode-hook (lambda () (setq-local c-ts-mode-indent-offset 4)))
 
@@ -28,32 +56,6 @@
 (setq make-backup-files nil)                                  ; 不自动备份
 (setq auto-save-default nil)                                  ; 不使用Emacs自带的自动保存
 
-(use-package super-save
-  :ensure t
-  :hook (after-init . super-save-mode)
-  :config
-  ;; Emacs空闲是否自动保存，这里不设置
-  (setq super-save-auto-save-when-idle nil)
-  ;; ;; 切换窗口自动保存
-  ;; (add-to-list 'super-save-triggers 'other-window)
-  ;; ;; 查找文件时自动保存
-  ;; (add-to-list 'super-save-hook-triggers 'find-file-hook)
-  ;; 远程文件编辑不自动保存
-  (setq super-save-remote-files nil)
-  ;; 特定后缀名的文件不自动保存
-  (setq super-save-exclude '(".gpg"))
-  ;; 自动保存时，保存所有缓冲区
-  (defun super-save/save-all-buffers ()
-    (save-excursion
-      (dolist (buf (buffer-list))
-        (set-buffer buf)
-        (when (and buffer-file-name
-                   (buffer-modified-p (current-buffer))
-                   (file-writable-p buffer-file-name)
-                   (if (file-remote-p buffer-file-name) super-save-remote-files t))
-          (save-buffer)))))
-  (advice-add 'super-save-command :override 'super-save/save-all-buffers)
-  )
 
 (use-package eglot
   :ensure nil
@@ -130,31 +132,36 @@
   (corfu-preview-current nil)
   )
 
+;; 永远不要让 ispell 补全进列表
+(setq completion-at-point-functions 
+      (delq 'ispell-completion-at-point completion-at-point-functions))
+
 ;;Cape 插件提供了一系列开箱即用的补全后端，跟corfu联合使用。
-(use-package cape
-  :ensure t
-  :init
-  ;; Add `completion-at-point-functions', used by `completion-at-point'.
-  (add-to-list 'completion-at-point-functions #'cape-file)
-  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
-  (add-to-list 'completion-at-point-functions #'cape-keyword)  ; programming language keyword
-  (add-to-list 'completion-at-point-functions #'cape-ispell)
-  (add-to-list 'completion-at-point-functions #'cape-dict)
-  (add-to-list 'completion-at-point-functions #'cape-symbol)   ; elisp symbol
-  (add-to-list 'completion-at-point-functions #'cape-line)
-
-  :config
-  (setq cape-dict-file (expand-file-name "etc/hunspell_dict.txt" user-emacs-directory))
-
-  ;; for Eshell:
-  ;; ===========
-  ;; Silence the pcomplete capf, no errors or messages!
-  (advice-add 'pcomplete-completions-at-point :around #'cape-wrap-silent)
-
-  ;; Ensure that pcomplete does not write to the buffer
-  ;; and behaves as a pure `completion-at-point-function'.
-  (advice-add 'pcomplete-completions-at-point :around #'cape-wrap-purify)
-  )
+;;(use-package cape
+;;  :ensure t
+;;  :init
+;;  ;; Add `completion-at-point-functions', used by `completion-at-point'.
+;;  (add-to-list 'completion-at-point-functions #'cape-file)
+;;  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
+;;  (add-to-list 'completion-at-point-functions #'cape-keyword)  ; programming language keyword
+;;  (add-to-list 'completion-at-point-functions #'cape-ispell)
+;;  (add-to-list 'completion-at-point-functions #'cape-dict)
+;;  (add-to-list 'completion-at-point-functions #'cape-symbol)   ; elisp symbol
+;;  (add-to-list 'completion-at-point-functions #'cape-line)
+;;
+;;  :config
+;;  (require 'cape)
+;;  (setq cape-dict-file (expand-file-name "etc/hunspell_dict.txt" user-emacs-directory))
+;;
+;;  ;; for Eshell:
+;;  ;; ===========
+;;  ;; Silence the pcomplete capf, no errors or messages!
+;;  (advice-add 'pcomplete-completions-at-point :around #'cape-wrap-silent)
+;;
+;;  ;; Ensure that pcomplete does not write to the buffer
+;;  ;; and behaves as a pure `completion-at-point-function'.
+;;  (advice-add 'pcomplete-completions-at-point :around #'cape-wrap-purify)
+;;  )
 
 ;; 3. 语法检查 (Eglot 默认使用 Flymake)
 ;; 如果你坚持想用 Flycheck，需要安装 `exec-path-from-shell` 并配置兼容层
@@ -190,12 +197,47 @@
                  (eq old-tick (buffer-chars-modified-tick)))
         (ignore-errors (yas-next-field))))))
 
+;; 显式确保 lsp-bridge 必须的依赖包已安装
+;; (dolist (pkg '(markdown-mode posframe yasnippet))
+;;   (unless (package-installed-p pkg)
+;;     (package-install pkg)))
+
+;; (use-package lsp-bridge
+;;   :ensure nil
+;;   :init
+;;   (require 'lsp-bridge)
+;;   :config
+;;   (global-lsp-bridge-mode)
+;;   ;; --- Windows 环境自动适配 ---
+;;   (when (eq system-type 'windows-nt)
+;;     ;; 1. 强制指定 python 路径（防止 Windows 找不到 python3）
+;;     (setq lsp-bridge-python-command "python")
+    
+;;     ;; 2. 优化 Windows 下的异步进程性能
+;;     (setq process-adaptive-read-buffering nil))
+
+;;   ;; --- 针对你配置中的 Evil 模式进行适配 ---
+;;   (with-eval-after-load 'evil
+;;     (setq lsp-bridge-enable-hover-diagnostic t)
+;;     ;; 定义 Evil 风格的快捷键
+;;     (evil-define-key 'normal lsp-bridge-mode-map (kbd "g d") 'lsp-bridge-find-def)
+;;     (evil-define-key 'normal lsp-bridge-mode-map (kbd "g r") 'lsp-bridge-find-references)
+;;     (evil-define-key 'normal lsp-bridge-mode-map (kbd "K")   'lsp-bridge-lookup-documentation)
+;;     (evil-define-key 'normal lsp-bridge-mode-map (kbd "M-n") 'lsp-bridge-diagnostic-jump-next)
+;;     (evil-define-key 'normal lsp-bridge-mode-map (kbd "M-p") 'lsp-bridge-diagnostic-jump-prev))
+
+;;   ;; 默认开启代码多光标支持等高级功能
+;;   (setq lsp-bridge-enable-org-header-completion t))
+
 
 (use-package treemacs
  :ensure t
  :defer t
  :config
  (treemacs-tag-follow-mode)
+ (with-eval-after-load 'treemacs
+   (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)
+   (define-key treemacs-mode-map [mouse-2] #'treemacs-rightclick-menu))
  :bind
  (:map global-map
     ("M-0"    . treemacs-select-window)
@@ -206,6 +248,18 @@
     ("C-x t M-t" . treemacs-find-tag))
  (:map treemacs-mode-map
 	("/" . treemacs-advanced-helpful-hydra)))
+
+(use-package treemacs-evil
+  :ensure t
+  :after (treemacs evil))
+
+(use-package doom-themes
+  :ensure t
+  :config
+  ;; 这一行是核心：它会让 treemacs 的外观变得像 doom 一样简洁
+  (doom-themes-treemacs-config)
+  ;; 修正主题中一些细微的 UI 闪烁
+  (doom-themes-visual-bell-config))
 
 (use-package treemacs-projectile
  :ensure t

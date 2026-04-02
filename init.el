@@ -27,16 +27,22 @@
 ;; --- 界面与增强 ---
 (require 'init-ui)        ; 合并了原 gui-frames 和 themes
 (require 'init-enhance)   ; 核心补全架构 (Vertico/Consult)
+(require 'init-window)    ; 窗口管理
 (require 'init-tools)     ; 各种小工具 (Helpful/Avy/Ace-window)
+(require 'init-dired)
 
 ;; --- 开发环境 ---
 (require 'init-project)    ; Magit/Projectile
 (require 'init-dev)        ; 合并了 LSP/Flycheck/Completion/Treesitter
 (require 'init-direnv)
 (require 'init-term)
+(require 'init-org)
 
 ;; --- 模拟层 (最后加载) ---
 (require 'init-evil)
+
+;; --- sicp ---
+(require 'init-sicp)
 
 ;; 杂项
 (require-package 'sudo-edit)

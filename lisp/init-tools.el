@@ -1,16 +1,12 @@
 ;;; init-tools.el --- Specialized Utilities -*- lexical-binding: t -*-
 ;;; Code:
 
-;; 跳转与窗口
+;; 跳转
 (use-package avy
   :ensure t
   :config
   (setq avy-timeout-seconds 0.3)
   (setq avy-all-windows t))
-
-(use-package ace-window
-  :ensure t
-  :bind ("C-x o" . ace-window))
 
 
 ;; 增强帮助
@@ -23,5 +19,32 @@
 
 ;; 滚动优化
 (use-package good-scroll :ensure t :if window-system :init (good-scroll-mode))
+
+(use-package pyim
+  :ensure t
+  :demand t
+  :config
+  ;; 1. 设置输入法激活快捷键 (C-\\)
+  (setq default-input-method "pyim")
+
+  ;; 2. 设置双拼方案为：小鹤双拼
+  (setq pyim-default-scheme 'xiaohe-shuangpin)
+
+  ;; 3. 设置选词框显示方式 (在光标处弹出)
+  (setq pyim-page-tooltip 'posframe) ; 如果你没装 posframe，可以改为 'popup 或 'minibuffer
+
+  ;; 4. 词库设置 (pyim 需要词库才能工作)
+  ;; 我们使用 pyim-basedict (基础词库)
+  (use-package pyim-basedict
+    :ensure t
+    :config (pyim-basedict-enable))
+
+  ;; 5. 标点符号设置
+  ;; 默认全角标点，你可以根据需求调整
+  (setq-default pyim-punctuation-dict nil)
+
+  :bind
+  (("M-j" . pyim-convert-string-at-point) ; 转换光标前的拼音为中文
+   ("C-\\" . toggle-input-method)))        ; 切换输入法
 
 (provide 'init-tools)
