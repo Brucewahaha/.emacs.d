@@ -50,7 +50,45 @@
     (evil-define-key 'normal eglot-mode-map (kbd "g r") 'xref-find-references)
     (evil-define-key 'normal eglot-mode-map (kbd "K")   'eldoc)))
   
-;; 3. Evil Collection
+;; 3. Evil in terminal
+(when (not (display-graphic-p))
+  ;; 定义修改光标形状的函数
+  (defun my-terminal-cursor-shape-block ()
+    (send-string-to-terminal "\e[2 q")) ;; 2 代表方块 (Block)
+  (defun my-terminal-cursor-shape-bar ()
+    (send-string-to-terminal "\e[6 q")) ;; 6 代表竖线 (Bar)
+  ;; 在进入 Insert 模式时变为 竖线，退出时（进入 Normal）变为 方块
+  (add-hook 'evil-insert-state-entry-hook 'my-terminal-cursor-shape-bar)
+  (add-hook 'evil-insert-state-exit-hook 'my-terminal-cursor-shape-block)
+  
+  ;; 确保 Emacs 启动时默认就是方块（Normal 模式）
+  (my-terminal-cursor-shape-block))
+
+;; 强制设置 region 在终端下的颜色
+(defun my/fix-terminal-faces ()
+  (when (not (display-graphic-p))
+    (set-face-attribute 'region nil
+                        :background "#555555" ;; 设置一个明显的颜色，例如深灰色
+                        :foreground "white")
+    ;; 确保 cursor 颜色可见
+    (set-cursor-color "#FF0000")))
+
+(add-hook 'tty-setup-hook 'my/fix-terminal-faces)
+(add-hook 'after-init-hook 'my/fix-terminal-faces)
+
+;; 开启全局行高亮
+(global-hl-line-mode 1)
+;; 强制修复 hl-line 在终端下的颜色
+(defun my/fix-hl-line-face ()
+  (when (not (display-graphic-p))
+    (set-face-attribute 'hl-line nil 
+                        :background "#333333" ;; 设置一个比背景深一点或浅一点的颜色
+                        :underline nil)))
+(add-hook 'tty-setup-hook 'my/fix-hl-line-face)
+(add-hook 'after-init-hook 'my/fix-hl-line-face)
+
+
+;; 4. Evil Collection
 (use-package evil-collection
   :ensure t
   :after evil
