@@ -18,10 +18,10 @@
 (require 'init-utils)     ; 包含基础函数和文件操作
 (require 'init-site-lisp) ; 手动安装的包
 (require 'init-elpa)      ; 镜像源与 use-package 设置
-(require 'init-exec-path) ; 环境变量
+(require 'init-environment)
 
 ;; GCMH 自动管理垃圾回收
-(when (require-package 'gcmh)
+(when (require 'gcmh nil t)
   (add-hook 'after-init-hook (lambda () (gcmh-mode 1))))
 
 ;; --- 界面与增强 ---
@@ -33,8 +33,10 @@
 
 ;; --- 开发环境 ---
 (require 'init-project)    ; Magit/Projectile
-(require 'init-dev)        ; 合并了 LSP/Flycheck/Completion/Treesitter
-(require 'init-direnv)
+(require 'init-editing)
+(require 'init-lsp)
+(require 'init-completion)
+(require 'init-treemacs)
 (require 'init-term)
 (require 'init-org)
 
@@ -45,10 +47,9 @@
 (require 'init-sicp)
 
 ;; 杂项
-(require-package 'sudo-edit)
-(require-package 'htmlize)
+(require 'sudo-edit nil t)
+(require 'htmlize nil t)
 (when (file-exists-p custom-file) (load custom-file))
-(require 'init-locales)
 
 (provide 'init)
 ;;; init.el ends here

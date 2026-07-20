@@ -1,10 +1,9 @@
 ;; init-treesitter.el --- Native Treesitter Configuration -*- lexical-binding: t -*-
 ;; 1. 配置 treesit-auto 插件
 ;; 它会自动管理语法解析器的下载地址和 Mode 的映射
-(when (maybe-require-package 'treesit-auto)
-  (require 'treesit-auto)
+(when (require 'treesit-auto nil t)
   
- (setq treesit-auto-install t)
+ (setq treesit-auto-install 'prompt)
   ;; 如果你有特定的解析器源码需求（比如默认地址连不上），可以在这里补充，否则不需要写。
  (setq treesit-language-source-alist
       '(;; --- 官方 Tree-sitter 组织提供的解析器 ---

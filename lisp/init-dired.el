@@ -1,43 +1,20 @@
-;;; init-dired.el --- Dired configuration with Wdired and enhancements -*- lexical-binding: t -*-
-
-;;; Commentary:
-;; 1. 提供像编辑文本一样重命名文件的能力 (Wdired)
-;; 2. 增强多光标和批量处理支持
-;; 3. 实现文件与目录 Buffer 的双向实时同步
-
+;;; init-dired.el --- Dired file manager settings -*- lexical-binding: t -*-
 ;;; Code:
 
+;; 基础行为
 (use-package dired
-  :ensure nil ; 内置功能
+  :ensure nil
   :config
-  ;; --- 1. 基础行为设置 ---
-  ;; 让 Dired 能够递归地拷贝和删除目录 
-  (setq dired-recursive-copies 'always)
-  (setq dired-recursive-deletes 'always)
-  
-  ;; 允许 Dired 缓冲区在文件系统发生变化时自动刷新 
-  (setq dired-auto-revert-buffer t)
-  
-  ;; 优化：使 Dired 在左右分屏时，拷贝目标默认为另一个窗口的路径
-  (setq dired-dwim-target t)
+  (require 'dired-x)
+  (setq dired-recursive-copies 'always
+        dired-recursive-deletes 'always
+        dired-omit-files "^\\..+"
+        dired-auto-revert-buffer t
+        dired-dwim-target t
+        wdired-allow-to-change-permissions t)
+  (add-hook 'dired-mode-hook #'auto-revert-mode))
 
-  ;; --- 2. 实时同步优化 ---
-  ;; 确保 Global Auto Revert 也能作用于 Dired 
-  (add-hook 'dired-mode-hook 'auto-revert-mode)
-
-  ;; --- 3. Wdired (可编辑模式) 设置 ---
-  ;; 允许修改文件权限
-  (setq wdired-allow-to-change-permissions t)
-  ;; 修改完文件名后，按 C-c C-c 保存，按 C-c C-k 取消
-
-  :bind (:map dired-mode-map
-              ;; 将 C-c C-e 绑定为进入“编辑模式”
-              ("C-c C-e" . dired-toggle-read-only)
-              ;; 习惯 Evil 的用户可以映射 "i" 进入编辑模式
-              ("i" . dired-toggle-read-only)))
-
-;; --- 4. 目录树状视图 (可选增强) ---
-;; 允许在当前 Dired 缓冲区内像树状图一样展开子目录
+;; 目录树状视图
 (use-package dired-subtree
   :ensure t
   :after dired
@@ -45,14 +22,67 @@
               ("<tab>" . dired-subtree-toggle)
               ("TAB" . dired-subtree-toggle)))
 
-;; --- 5. 多光标批量处理逻辑 ---
-;; 当进入 Wdired 模式时，你可以直接使用你已有的 evil-multiedit 或 iedit
-;; 例如：
-;; 1. C-x d 进入目录
-;; 2. C-c C-e 进入编辑状态
-;; 3. M-i (iedit) 选中所有想改的文件名部分并统一修改 
-;; 4. C-c C-c 提交修改
+;; Wdired 重命名
+(defun my/dired-enter-wdired ()
+  "进入 Wdired 重命名模式并切换到 Evil Insert 状态。"
+  (interactive)
+  (wdired-change-to-wdired-mode)
+  (when (fboundp 'evil-insert-state)
+    (evil-insert-state)))
+
+;; Neo-tree 风格文件操作
+(defun my/dired-create-file-or-directory ()
+  "在当前 Dired 目录中新建文件或以斜杠结尾的新目录。"
+  (interactive)
+  (let* ((name (read-string "新建文件或目录: "))
+         (path (expand-file-name name default-directory)))
+    (when (file-exists-p path)
+      (user-error "目标已存在: %s" path))
+    (if (string-suffix-p "/" name)
+        (make-directory path t)
+      (make-empty-file path))
+    (revert-buffer)))
+
+(defun my/dired-copy-path ()
+  "复制当前文件或目录的绝对路径。"
+  (interactive)
+  (let ((path (dired-get-filename)))
+    (kill-new path)
+    (message "已复制: %s" path)))
+
+(defun my/dired-paste-path ()
+  "将最近复制的文件或目录复制到当前 Dired 目录。"
+  (interactive)
+  (let* ((source (current-kill 0))
+         (name (file-name-nondirectory (directory-file-name source)))
+         (target (expand-file-name name default-directory)))
+    (unless (file-exists-p source)
+      (user-error "剪贴板中没有可复制的本地路径"))
+    (when (file-exists-p target)
+      (user-error "目标已存在: %s" target))
+    (if (file-directory-p source)
+        (copy-directory source target)
+      (copy-file source target))
+    (revert-buffer)
+    (message "已复制到: %s" target)))
+
+(defun my/dired-configure-evil-keys ()
+  "在 Evil Collection 初始化后设置 Dired 的 Evil 键位。"
+  (when (fboundp 'evil-define-key)
+    (evil-define-key 'normal dired-mode-map
+      "h" #'dired-up-directory
+      "l" #'dired-find-file
+      "H" #'dired-omit-mode
+      "a" #'my/dired-create-file-or-directory
+      "r" #'dired-do-rename
+      "c" #'my/dired-copy-path
+      "v" #'my/dired-paste-path
+      "d" #'dired-do-delete
+      "\\" #'quit-window
+      "i" #'my/dired-enter-wdired
+      (kbd "C-c C-e") #'my/dired-enter-wdired)))
+
+(add-hook 'dired-mode-hook #'my/dired-configure-evil-keys t)
 
 (provide 'init-dired)
-
-;;; init-dired.el ends
+;;; init-dired.el ends here

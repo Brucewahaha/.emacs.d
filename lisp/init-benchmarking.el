@@ -2,6 +2,9 @@
 ;;; Commentary:
 ;;; Code:
 
+(defvar my/enable-startup-benchmarking nil
+  "非 nil 时记录模块加载耗时并显示启动耗时。")
+
 (defun sanityinc/time-subtract-millis (b a)
   (* 1000.0 (float-time (time-subtract b a))))
 
@@ -22,7 +25,8 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
                        (list feature require-start-time time)
                        t))))))
 
-(advice-add 'require :around 'sanityinc/require-times-wrapper)
+(when my/enable-startup-benchmarking
+  (advice-add 'require :around 'sanityinc/require-times-wrapper))
 
 (define-derived-mode sanityinc/require-times-mode tabulated-list-mode "Require-Times"
   "Show times taken to `require' packages."
@@ -69,7 +73,8 @@ LOAD-DURATION is the time taken in milliseconds to load FEATURE.")
   (message "init completed in %.2fms"
            (sanityinc/time-subtract-millis after-init-time before-init-time)))
 
-(add-hook 'after-init-hook 'sanityinc/show-init-time)
+(when my/enable-startup-benchmarking
+  (add-hook 'after-init-hook #'sanityinc/show-init-time))
 
 
 (provide 'init-benchmarking)

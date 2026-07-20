@@ -32,17 +32,34 @@
   (evil-mode 1)
   ;; 确保在 Insert 模式下 ESC 依然能回到 Normal 模式
   (define-key evil-insert-state-map [escape] 'evil-normal-state)
-  (define-key evil-normal-state-map (kbd "[ SPC") (lambda () (interactive) (evil-insert-newline-above) (forward-line)))
-  (define-key evil-normal-state-map (kbd "] SPC") (lambda () (interactive) (evil-insert-newline-below) (forward-line -1)))
+   (define-key evil-normal-state-map (kbd "[ SPC") (lambda () (interactive) (evil-insert-newline-above) (forward-line)))
+   (define-key evil-normal-state-map (kbd "] SPC") (lambda () (interactive) (evil-insert-newline-below) (forward-line -1)))
+   ;; 文件树快捷键，仅覆盖 Evil Normal 状态。
+   (define-key evil-normal-state-map (kbd "C-e") #'my/treemacs-toggle-current-project)
 
-  (define-key evil-normal-state-map (kbd "[ b") 'previous-buffer)
-  (define-key evil-normal-state-map (kbd "] b") 'next-buffer)
-  (define-key evil-motion-state-map (kbd "[ b") 'previous-buffer)
-  (define-key evil-motion-state-map (kbd "] b") 'next-buffer)
-  ;; s -> 输入 1 或 2 个字符后根据提示跳转
-  (define-key evil-normal-state-map (kbd "s") 'avy-goto-char-timer)
-  ;; 在可视化模式 (Visual Mode) 也能跳，方便快速选区
-  (define-key evil-visual-state-map (kbd "s") 'avy-goto-char-timer)
+    ;; tab-line 使用当前 Window 的标签序列，[b 向左，]b 向右。
+   (define-key evil-normal-state-map (kbd "[ b") #'my/tab-line-switch-to-prev-tab)
+   (define-key evil-normal-state-map (kbd "] b") #'my/tab-line-switch-to-next-tab)
+   (define-key evil-motion-state-map (kbd "[ b") #'my/tab-line-switch-to-prev-tab)
+   (define-key evil-motion-state-map (kbd "] b") #'my/tab-line-switch-to-next-tab)
+   (dotimes (index 9)
+     (let ((index (1+ index)))
+       (define-key evil-normal-state-map (kbd (format "C-S-%d" index))
+                   (lambda () (interactive) (my/tab-line-switch-to-index index)))
+       (define-key evil-motion-state-map (kbd (format "C-S-%d" index))
+                   (lambda () (interactive) (my/tab-line-switch-to-index index)))))
+   (dolist (key '("!" "@" "#" "$" "%" "^" "&" "*" "("))
+     (define-key evil-normal-state-map (kbd (concat "C-" key))
+                 #'my/tab-line-switch-to-control-shift-index)
+     (define-key evil-motion-state-map (kbd (concat "C-" key))
+                 #'my/tab-line-switch-to-control-shift-index))
+   ;; 新 Window 固定创建在右侧或下方。
+   (define-key evil-window-map (kbd "v") #'split-window-right)
+   (define-key evil-window-map (kbd "s") #'split-window-below)
+   ;; s -> 固定输入两个字符后跳转
+   (define-key evil-normal-state-map (kbd "s") 'avy-goto-char-2)
+   ;; 在可视化模式 (Visual Mode) 也能跳，方便快速选区
+   (define-key evil-visual-state-map (kbd "s") 'avy-goto-char-2)
   
   ;; Eglot 相关快捷键绑定 (Normal 模式下生效)
   (with-eval-after-load 'eglot
@@ -76,8 +93,6 @@
 (add-hook 'tty-setup-hook 'my/fix-terminal-faces)
 (add-hook 'after-init-hook 'my/fix-terminal-faces)
 
-;; 开启全局行高亮
-(global-hl-line-mode 1)
 ;; 强制修复 hl-line 在终端下的颜色
 (defun my/fix-hl-line-face ()
   (when (not (display-graphic-p))
@@ -87,13 +102,22 @@
 (add-hook 'tty-setup-hook 'my/fix-hl-line-face)
 (add-hook 'after-init-hook 'my/fix-hl-line-face)
 
-
 ;; 4. Evil Collection
 (use-package evil-collection
   :ensure t
   :after evil
   :config
-  (evil-collection-init))
+  (evil-collection-init)
+  ;; 覆盖 unimpaired 的全局 Buffer 历史切换，统一按当前 Window 标签顺序切换。
+  (evil-collection-define-key 'normal 'evil-collection-unimpaired-mode-map
+    "[b" #'my/tab-line-switch-to-prev-tab
+    "]b" #'my/tab-line-switch-to-next-tab)
+  ;; 终端和多数图形环境将 Shift+数字解释为标点字符。
+  (dolist (key '("!" "@" "#" "$" "%" "^" "&" "*" "("))
+    (evil-collection-define-key 'normal 'evil-collection-unimpaired-mode-map
+      key nil)
+    (evil-collection-define-key 'normal 'evil-collection-unimpaired-mode-map
+      (concat "C-" key) #'my/tab-line-switch-to-control-shift-index)))
 
 (use-package iedit
   :ensure t

@@ -60,8 +60,4 @@
   :after eshell
   :config (eshell-syntax-highlighting-global-mode +1))
 
-(use-package esh-autosuggest
-  :ensure t
-  :hook (eshell-mode . esh-autosuggest-mode))
-
 (provide 'init-term)

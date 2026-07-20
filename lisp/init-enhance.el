@@ -30,7 +30,25 @@
 
 (use-package rainbow-delimiters
   :ensure t
-  :hook (prog-mode . rainbow-delimiters-mode))
+  :hook (prog-mode . my/rainbow-delimiters-maybe-enable)
+  :config
+  (defvar my/rainbow-delimiters-enabled t
+    "非 nil 时在编程 Buffer 中启用彩虹括号。")
+  (defun my/rainbow-delimiters-maybe-enable ()
+    "按全局开关启用当前 Buffer 的彩虹括号。"
+    (when my/rainbow-delimiters-enabled
+      (rainbow-delimiters-mode 1)))
+  (defun my/toggle-rainbow-delimiters ()
+    "全局开关彩虹括号。"
+    (interactive)
+    (setq my/rainbow-delimiters-enabled (not my/rainbow-delimiters-enabled))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (derived-mode-p 'prog-mode)
+          (rainbow-delimiters-mode
+           (if my/rainbow-delimiters-enabled 1 -1)))))
+    (message "彩虹括号已%s" (if my/rainbow-delimiters-enabled "开启" "关闭")))
+  (global-set-key (kbd "C-c t r") #'my/toggle-rainbow-delimiters))
 
 ;; =============================================================================
 ;; 2. Vertico 补全全家桶 (替代 Ivy/Counsel)
@@ -45,9 +63,6 @@
   (setq vertico-cycle t))
 
 
-(use-package pinyinlib
-  :ensure t)
-
 ;; Orderless: 模糊匹配策略 (替代 Ivy 的匹配算法)
 (use-package orderless
   :ensure t
@@ -55,10 +70,6 @@
   (completion-styles '(orderless basic))
   (completion-category-overrides '((file (styles basic partial-completion))))
   :config
-  ;; 添加拼音支持函数
-  (defun completion--regex-pinyin (str)
-    (orderless-regexp (pinyinlib-build-regexp-string str)))
-  ;; 将拼音匹配加入到 orderless 策略中 (按需开启，这里设为第二个匹配项)
   (setq orderless-matching-styles '(orderless-literal orderless-regexp)))
 
 ;; Marginalia: 补全列表侧边栏 (显示函数说明、文件权限等)
