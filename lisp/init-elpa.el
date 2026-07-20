@@ -18,10 +18,10 @@
 (setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
                          ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
                          ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
-;; 2. 保留并修改 Purcell 原有的代码：
-;; 注意这里的最后一个参数是 t，意思是“追加到列表末尾”
-;; 我们把原有的官方源改个名字（比如叫 melpa-upstream），作为备用
-(add-to-list 'package-archives '("melpa-upstream" . "https://melpa.org/packages/") t)
+;; 2. 只保留一个 MELPA 源，避免相同包名被后加入的源覆盖。
+(setq package-archive-priorities '(("melpa" . 10)
+                                   ("gnu" . 0)
+                                   ("nongnu" . 0)))
 (add-to-list 'package-unsigned-archives "melpa")
 ;; Official MELPA Mirror, in case necessary.
 ;;(add-to-list 'package-archives (cons "melpa-mirror" (concat proto "://www.mirrorservice.org/sites/melpa.org/packages/")) t)
