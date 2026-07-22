@@ -3,6 +3,24 @@
 (setq confirm-kill-emacs #'yes-or-no-p
       use-dialog-box nil)
 (require 'color)
+(defconst my/programming-font-families
+  '("0xProto Nerd Font Mono" "Cascadia Mono" "JetBrains Mono"
+    "Menlo" "Monaco" "Consolas" "Liberation Mono"
+    "DejaVu Sans Mono" "monospace")
+  "Preferred programming font families, ordered by preference.")
+(defconst my/cjk-font-families
+  '("Microsoft YaHei" "PingFang SC" "Hiragino Sans GB"
+    "Noto Sans CJK SC" "WenQuanYi Zen Hei Mono" "SimSun" "sans-serif")
+  "Preferred CJK font families, ordered by preference.")
+(defconst my/nerd-font-families
+  '("Symbols Nerd Font Mono" "0xProto Nerd Font Mono")
+  "Font families that provide the Nerd Font private-use glyphs.")
+(defun my/nerd-font-available-p ()
+  "Return non-nil when this GUI frame can render Nerd Font icons."
+  (and (display-graphic-p)
+       (cl-find-if (lambda (family)
+                     (member family (font-family-list)))
+                   my/nerd-font-families)))
 ;; (when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
 ;; (when (fboundp 'set-scroll-bar-mode) (set-scroll-bar-mode nil))
 ;; (menu-bar-mode -1)
@@ -73,7 +91,9 @@
 (defun my/tab-line-tab-name (buffer buffers)
   "返回 BUFFER 的编号和截断后的标签名称。"
   (let ((index (1+ (seq-position buffers buffer))))
-    (format "%d %s" index (tab-line-tab-name-truncated-buffer buffer buffers))))
+    (concat (when (eq buffer (current-buffer))
+              (propertize "▌" 'face 'font-lock-keyword-face))
+            (format "%d %s" index (tab-line-tab-name-truncated-buffer buffer buffers)))))
 (defun my/tab-line-switch (offset)
   "按当前 Window 标签栏的显示顺序移动 OFFSET 个标签。"
   (let* ((buffers (my/tab-line-tabs))
@@ -148,7 +168,7 @@
       tab-line-close-button-show t
       tab-line-tab-name-function #'my/tab-line-tab-name
       tab-line-tab-name-truncated-max 20
-      tab-line-separator (propertize "│" 'face 'shadow)
+       tab-line-separator ""
       tab-line-close-tab-function #'my/tab-line-close-tab
       switch-to-prev-buffer-skip #'my/switch-to-prev-buffer-skip)
 (defun my/set-tab-line-close-button (icon)
@@ -161,8 +181,9 @@
                     'help-echo "关闭标签")))
 (my/set-tab-line-close-button "×")
 (with-eval-after-load 'nerd-icons
-  (my/set-tab-line-close-button
-   (nerd-icons-mdicon "nf-md-close_thick" :height 0.8)))
+  (when (my/nerd-font-available-p)
+    (my/set-tab-line-close-button
+     (nerd-icons-mdicon "nf-md-close_thick" :height 0.8))))
 (add-hook 'window-configuration-change-hook #'my/tab-line-track-windows)
 (unless (advice-member-p #'my/tab-line-record-after-switch-to-buffer 'switch-to-buffer)
   (advice-add 'switch-to-buffer :after #'my/tab-line-record-after-switch-to-buffer))
@@ -201,17 +222,17 @@
 
 ;; 3. 插件：图标库与状态栏
 (use-package nerd-icons
-  :ensure t
-  :if (display-graphic-p))
+  :ensure t)
 (use-package nerd-icons-dired
   :ensure t
+  :if (my/nerd-font-available-p)
   :hook (dired-mode . nerd-icons-dired-mode))
 (use-package doom-modeline
   :ensure t
   :init (doom-modeline-mode 1)
   :config
-  (setq doom-modeline-icon t
-        doom-modeline-major-mode-icon t))
+  (setq doom-modeline-icon (my/nerd-font-available-p)
+        doom-modeline-major-mode-icon (my/nerd-font-available-p)))
 ;; (use-package monokai-theme 
 ;;   :ensure t 
 ;;   :config (load-theme 'monokai t))
@@ -226,8 +247,9 @@
   ;; Global settings (defaults)
   (doom-themes-enable-bold t)   ; if nil, bold is universally disabled
   (doom-themes-enable-italic t) ; if nil, italics is universally disabled
-  ;; for treemacs users
-  (doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
+   ;; for treemacs users
+   (doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
+   (doom-themes-treemacs-enable-variable-pitch nil)
   :config
   (load-theme 'doom-nord t)
 
@@ -246,11 +268,11 @@
   (interactive)
   (let* ((font-size 16)
          ;; 英文/基础字体
-         (efl '("0xProto Nerd Font Mono" "Cascadia Mono" "JetBrains Mono" "Monaco" "Consolas"))
+          (efl my/programming-font-families)
          ;; 中文字体
-         (cfl '("Microsoft YaHei" "STHeiti" "SimSun"))
+          (cfl my/cjk-font-families)
          ;; 符号/图标字体
-         (sfl '("Symbols Nerd Font Mono" "Apple Color Emoji" "Segoe UI Emoji"))
+          (sfl my/nerd-font-families)
          
          (ef (cl-find-if (lambda (f) (member f (font-family-list))) efl))
          (cf (cl-find-if (lambda (f) (member f (font-family-list))) cfl))

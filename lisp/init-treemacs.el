@@ -21,7 +21,9 @@
 (defun my/treemacs-display-current-project ()
   "在 Treemacs 中只显示当前项目根目录。"
   (interactive)
-  (treemacs-add-and-display-current-project-exclusively))
+  (treemacs-add-and-display-current-project-exclusively)
+  (when (eq (treemacs-current-visibility) 'exists)
+    (treemacs-select-window)))
 
 (defun my/treemacs-visible-window ()
   "返回当前 Frame 中可见的 Treemacs Window。"

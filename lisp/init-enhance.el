@@ -17,12 +17,21 @@
 (use-package dashboard
   :ensure t
   :config
-  (setq dashboard-banner-logo-title "Welcome to Emacs!")
-  (setq dashboard-startup-banner 'official)
-  (setq dashboard-items '((recents . 5)
-                          (bookmarks . 5)
-                          (projects . 10)))
-  (dashboard-setup-startup-hook))
+   (defun my/dashboard-goto-first-item ()
+     "Place point on the first Dashboard item after initialization."
+     (goto-char (point-min))
+     (widget-forward 1))
+   (setq dashboard-banner-logo-title "Welcome to Emacs!")
+   (setq dashboard-startup-banner 'logo)
+   (setq dashboard-projects-backend 'projectile)
+   (setq dashboard-page-separator "\n────────────────────────────────────────\n")
+   (setq dashboard-icon-type 'nerd-icons
+         dashboard-display-icons-p #'my/nerd-font-available-p
+         dashboard-set-file-icons t)
+   (setq dashboard-items '((recents . 5)
+                            (projects . 10)))
+   (add-hook 'dashboard-after-initialize-hook #'my/dashboard-goto-first-item)
+   (dashboard-setup-startup-hook))
 
 (use-package highlight-symbol
   :ensure t

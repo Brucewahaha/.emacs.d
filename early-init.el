@@ -12,9 +12,7 @@
 (setq default-frame-alist
       '((menu-bar-lines . 0)
         (tool-bar-lines . 0)
-        (vertical-scroll-bars . nil)
-	(width . 100)
-	(height . 50)))
+        (vertical-scroll-bars . nil)))
 ;; 2. 禁止启动画面（放在这里可以更早生效）
 (setq inhibit-startup-screen t)
 ;; 3. 性能优化：禁用包自动初始化，由 init.el 掌控
