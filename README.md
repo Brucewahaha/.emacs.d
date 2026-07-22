@@ -28,7 +28,7 @@
 
 ## 主要插件
 
-- 编辑与 UI：`evil`、`doom-themes`、`doom-modeline`、`nerd-icons`
+- 编辑与 UI：`evil`、`doric-themes`、`doom-themes`、`doom-modeline`、`nerd-icons`
 - Minibuffer：`vertico`、`orderless`、`marginalia`、`consult`、`embark`
 - 代码补全：`corfu`、`cape`、`yasnippet`
 - 开发：内置 `eglot`、内置 `flymake`、`consult-eglot`、`treesit-auto`
@@ -38,6 +38,51 @@
 - 文本编辑：`rainbow-delimiters`、`evil-multiedit`、`evil-surround`
 
 ## 重要操作
+
+### 中文输入
+
+```text
+C-\\                切换 Pyim 中文输入法
+M-j                将光标前的拼音转换为中文
+```
+
+Pyim 使用小鹤双拼方案，候选词默认在光标附近显示。
+
+### 主题
+
+```text
+C-c t t            在 Doric Fire 夜间主题与 Doric Jade 浅色主题之间切换
+```
+
+Doom Themes 的集成配置保留为备选，但当前不会加载或启用。
+
+### 代码模板
+
+Yasnippet 提供常用代码片段的展开和占位符跳转。
+
+```text
+S-TAB              展开当前模板，或跳转到下一个模板字段
+```
+
+### 候选项操作
+
+在文件搜索、Buffer 切换或命令执行等 Minibuffer 候选列表中，可对当前候选项执行额外操作。
+
+```text
+C-.                显示当前候选项可用的操作
+M-.                直接执行最合适的候选项操作
+C-h B              查看当前快捷键绑定
+```
+
+### 弹窗窗口
+
+帮助、编译输出、诊断、消息和 Eat 终端等临时 Buffer 由 Popper 统一管理，不打断主编辑窗口布局。
+
+```text
+C-c `              显示或隐藏最近的弹窗
+M-`                在多个弹窗间切换
+C-M-`              切换当前窗口是否按弹窗管理
+```
 
 ### Buffer 与 Tab
 

@@ -206,7 +206,7 @@
   (let ((editor-background (face-attribute 'default :background nil t)))
     (when (and (stringp editor-background)
                (not (member editor-background '("unspecified" "unspecified-bg"))))
-      (let ((tab-background (my/darken-color editor-background 0.50)))
+      (let ((tab-background (my/darken-color editor-background 0.38)))
         (set-face-attribute 'tab-line nil :background tab-background :box nil)
         (set-face-attribute 'tab-line-tab nil :background tab-background :box nil)
         (set-face-attribute 'tab-line-tab-inactive nil
@@ -233,35 +233,45 @@
   :config
   (setq doom-modeline-icon (my/nerd-font-available-p)
         doom-modeline-major-mode-icon (my/nerd-font-available-p)))
-;; (use-package monokai-theme 
-;;   :ensure t 
-;;   :config (load-theme 'monokai t))
 
-;; (use-package gruvbox-theme
-;;   :ensure t
-;;   :init
-;;   (load-theme 'gruvbox-dark-soft t)) ;; 或者 tokyonight-storm
+
+(defconst my/night-theme 'doric-fire)
+(defconst my/light-theme 'doric-jade)
+
+(defun my/load-theme (theme)
+  "Enable THEME after disabling every currently active theme."
+  (dolist (enabled-theme (copy-sequence custom-enabled-themes))
+    (disable-theme enabled-theme))
+  (load-theme theme t)
+  (my/tab-line-apply-theme-colors))
+
+(defun my/toggle-theme ()
+  "Switch between the configured night and light themes."
+  (interactive)
+  (my/load-theme (if (memq my/night-theme custom-enabled-themes)
+                     my/light-theme
+                   my/night-theme)))
+
+(use-package doric-themes
+  :ensure t)
+
+;; 保留 Doom Themes 的原有集成，按需加载时才生效。
 (use-package doom-themes
   :ensure t
-  :custom
-  ;; Global settings (defaults)
-  (doom-themes-enable-bold t)   ; if nil, bold is universally disabled
-  (doom-themes-enable-italic t) ; if nil, italics is universally disabled
-   ;; for treemacs users
-   (doom-themes-treemacs-theme "doom-atom") ; use "doom-colors" for less minimal icon theme
-   (doom-themes-treemacs-enable-variable-pitch nil)
+  :defer t
+  :init
+  (setq doom-themes-enable-bold t
+        doom-themes-enable-italic t
+        doom-themes-treemacs-theme "doom-atom"
+        doom-themes-treemacs-enable-variable-pitch nil)
   :config
-  (load-theme 'doom-nord t)
-
-  ;; Enable flashing mode-line on errors
   (doom-themes-visual-bell-config)
-  ;; Enable custom neotree theme (nerd-icons must be installed!)
   (doom-themes-neotree-config)
-  ;; or for treemacs users
   (doom-themes-treemacs-config)
-  ;; Corrects (and improves) org-mode's native fontification.
-  (doom-themes-org-config)
-  (my/tab-line-apply-theme-colors))
+  (doom-themes-org-config))
+
+(my/load-theme my/night-theme)
+(global-set-key (kbd "C-c t t") #'my/toggle-theme)
 
 ;; 4. 字体设置
 (defun my/setup-font ()
