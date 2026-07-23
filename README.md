@@ -176,16 +176,70 @@ C-g                退出多光标会话
 
 矩形、多行同列编辑仍建议使用 Evil Visual Block。
 
-### 终端与 Org
+### 终端
 
 ```text
 C-`                打开或关闭 Eat 终端
+```
+
+Eat 是主终端，会优先使用 zsh；Eshell 保留用于 Emacs 内部对象和轻量命令。
+
+### Org 日程与项目
+
+```text
+C-c c t            Capture 任务到 Inbox
+C-c c p            Capture 新项目
+C-c c e            Capture 日程或约会
+C-c a d            今日 Agenda 与下一步行动
+C-c a i            查看 Inbox 中待分类任务
+C-c a p            查看项目的下一步、进行中与等待项
+C-c C-w            将当前任务 Refile 到项目或其他目标
+C-c C-t            切换任务状态
+C-c C-s            设置计划开始日期
+C-c C-d            设置截止日期
+C-c C-x C-s        归档当前任务或项目
+```
+
+日常文件位于 `~/org/`：`inbox.org` 用于快速收集，`projects.org` 保存活跃项目，`calendar.org` 保存约会和固定日程。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。
+
+Capture 会在底部约 35% 的窗口中打开 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消；无需手动切换到目标 `.org` 文件。
+
+`C-c c t` 只需输入任务标题，先进入 Inbox。`C-c c p` 依次输入项目名称和第一项可执行的 `NEXT` 行动。`C-c c e` 依次输入日程名称、选择日期时间，再补充可选备注。
+
+Agenda 只读取这三个活跃文件。日程会在 30 分钟前开始显示桌面提醒，之后每 10 分钟重复提醒；桌面需要可用的通知服务。
+
+Android 可使用 Orgzly Revived，将其 WebDAV 仓库指向与 `~/org/` 同步的远程目录。避免在手机与桌面同时编辑同一文件。
+
+#### Agenda Buffer 操作
+
+`C-c a d` 打开的 Agenda 是只读的任务面板，不是普通 Org 编辑 Buffer。使用 `j` / `k` 选择任务；不要按 `i`，它是 Evil 的插入命令，而 Agenda 不支持直接插入文本。
+
+```text
+j / k              下移 / 上移选择任务
+RET                跳到任务的源 Org 文件并在原处编辑
+TAB                在另一个 Window 显示任务源位置
+t                  切换所选任务的 TODO 状态
+s                  为所选任务设置或修改计划日期
+C-c C-d            为所选任务设置或修改截止日期
+C-c C-w            将所选任务 Refile 到项目或其他目标
+a                  归档所选任务或项目
+r                  刷新 Agenda
+g j                输入日期并跳转
+g t                回到今天
+q                  退出 Agenda
+```
+
+典型流程是：`C-c a d` -> 用 `j` / `k` 选择 -> `RET` 查看任务上下文或 `t` / `s` 直接更新 -> `r` 刷新。项目任务通常在 `RET` 跳回源文件后，再用 `M-S-RET` 新建子任务。
+
+### 全局 Org 快捷键
+
+```text
 C-c c              Org Capture
 C-c a              Org Agenda
 C-c l              保存 Org Link
 ```
 
-Eat 是主终端，会优先使用 zsh；Eshell 保留用于 Emacs 内部对象和轻量命令。
+`C-c c` 和 `C-c a` 可在任何 Buffer 中调用。
 
 ## 启动性能
 

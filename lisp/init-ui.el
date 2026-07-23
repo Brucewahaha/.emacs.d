@@ -276,7 +276,7 @@
 ;; 4. 字体设置
 (defun my/setup-font ()
   (interactive)
-  (let* ((font-size 16)
+  (let* ((font-size 15)
          ;; 英文/基础字体
           (efl my/programming-font-families)
          ;; 中文字体
