@@ -10,6 +10,7 @@
   (electric-pair-local-mode -1))
 (add-hook 'minibuffer-setup-hook #'my/disable-electric-pair-in-minibuffer)
 (show-paren-mode 1)
+(global-hl-line-mode 1)
 (add-hook 'prog-mode-hook #'hs-minor-mode)
 (electric-indent-mode 1)
 
@@ -41,10 +42,14 @@
   :ensure t
   :hook (prog-mode . indent-bars-mode)
   :custom
-  (indent-bars-width-frac 0.1)
-  (indent-bars-pad-frac 0.1)
-  (indent-bars-pattern " .  ")
-  (indent-bars-zigzag nil))
+   (indent-bars-width-frac 0.1)
+   (indent-bars-pad-frac 0.1)
+   (indent-bars-pattern " .  ")
+   (indent-bars-zigzag nil)
+   (indent-bars-color '(default :face-bg t :blend 1))
+   (indent-bars-color-by-depth nil)
+   (indent-bars-highlight-current-depth
+    '(:face font-lock-keyword-face :blend 1 :width 0.18 :pattern ".")))
 
 ;; 剪贴板与选区
 (setq select-enable-primary nil

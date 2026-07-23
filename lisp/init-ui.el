@@ -235,7 +235,7 @@
         doom-modeline-major-mode-icon (my/nerd-font-available-p)))
 
 
-(defconst my/night-theme 'doric-fire)
+(defconst my/night-theme 'doom-wilmersdorf)
 (defconst my/light-theme 'doric-jade)
 
 (defun my/load-theme (theme)
@@ -255,10 +255,10 @@
 (use-package doric-themes
   :ensure t)
 
-;; 保留 Doom Themes 的原有集成，按需加载时才生效。
+;; 加载 Doom Themes 集成，供 Treemacs、Org 和视觉铃声在两种主题下使用。
 (use-package doom-themes
   :ensure t
-  :defer t
+  :demand t
   :init
   (setq doom-themes-enable-bold t
         doom-themes-enable-italic t
