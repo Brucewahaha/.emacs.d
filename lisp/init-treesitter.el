@@ -49,24 +49,36 @@
   ;; (setq treesit-auto-install 'prompt) ; 如果缺解析器，打开文件时会询问是否安装
   ;; 强制重映射（解决询问问题的核心）
   (setq major-mode-remap-alist
-        '((c-mode          . c-ts-mode)
-          (c++-mode        . c++-ts-mode)
-          (c-or-c++-mode   . c-ts-mode) 
-          (python-mode     . python-ts-mode)
+        '((python-mode     . python-ts-mode)
           (bash-mode       . bash-ts-mode)
           (js-mode         . js-ts-mode)
           (typescript-mode . typescript-ts-mode)
           (json-mode       . json-ts-mode)
           (cmake-mode      . cmake-ts-mode)))
 
-  ;; 显式文件后缀关联
-  (add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-ts-mode))
-  (add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-ts-mode))
-  (add-to-list 'auto-mode-alist '("\\.c\\'"   . c-ts-mode))
-  ;; 如果你的 .h 也是 C++，可以把下面这行改为 c++-ts-mode
-  (add-to-list 'auto-mode-alist '("\\.h\\'"   . c-ts-mode))
-  ;; 开启全局模式：自动将 python-mode 映射到 python-ts-mode 等
-  (global-treesit-auto-mode t))
+   ;; C/C++ parser 不可用或版本不匹配时，保留内置模式的可靠高亮。
+   (when (and (treesit-ready-p 'c t)
+              (treesit-ready-p 'cpp t))
+     (add-to-list 'major-mode-remap-alist '(c-mode . c-ts-mode))
+     (add-to-list 'major-mode-remap-alist '(c++-mode . c++-ts-mode))
+     (add-to-list 'major-mode-remap-alist '(c-or-c++-mode . c-ts-mode))
+     (add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-ts-mode))
+     (add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-ts-mode))
+     (add-to-list 'auto-mode-alist '("\\.c\\'" . c-ts-mode))
+     (add-to-list 'auto-mode-alist '("\\.h\\'" . c-ts-mode)))
+   ;; 映射由本文件显式管理，避免 treesit-auto 覆盖不可用 parser 的回退模式。
+   (global-treesit-auto-mode -1)
+   (unless (and (treesit-ready-p 'c t)
+                (treesit-ready-p 'cpp t))
+     (setq major-mode-remap-alist
+           (assq-delete-all 'c-or-c++-mode
+                             (assq-delete-all 'c++-mode
+                                               (assq-delete-all 'c-mode
+                                                                 major-mode-remap-alist))))
+     (add-to-list 'auto-mode-alist '("\\.cpp\\'" . c++-mode))
+     (add-to-list 'auto-mode-alist '("\\.hpp\\'" . c++-mode))
+     (add-to-list 'auto-mode-alist '("\\.c\\'" . c-mode))
+     (add-to-list 'auto-mode-alist '("\\.h\\'" . c-mode))))
 ;; 2. 界面美化设置
 ;; 设置语法高亮等级 (1-4)，4 最为丰富
 (setq treesit-font-lock-level 4)

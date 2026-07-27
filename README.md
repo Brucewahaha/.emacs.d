@@ -187,28 +187,39 @@ Eat 是主终端，会优先使用 zsh；Eshell 保留用于 Emacs 内部对象�
 ### Org 日程与项目
 
 ```text
-C-c c t            Capture 任务到 Inbox
-C-c c p            Capture 新项目
-C-c c e            Capture 日程或约会
+C-c c t            Capture 内容到统一 Inbox
+C-c c w / p        直接创建工作 / 个人任务
+C-c c W / P        直接创建工作 / 个人项目
+C-c c e            直接记录有明确时间的日程或约会
+C-c c j            记录当天自由日记
 C-c a d            今日 Agenda 与下一步行动
 C-c a i            查看 Inbox 中待分类任务
-C-c a p            查看项目的下一步、进行中与等待项
-C-c C-w            将当前任务 Refile 到项目或其他目标
+C-c a u            查看未设置日期的工作和个人任务
+C-c a p            查看工作和个人任务的 NEXT、WAITING、TODO
+C-c C-w            将 Inbox 内容 Refile 到工作、个人或日程文件
 C-c C-t            切换任务状态
 C-c C-s            设置计划开始日期
 C-c C-d            设置截止日期
 C-c C-x C-s        归档当前任务或项目
 ```
 
-日常文件位于 `~/org/`：`inbox.org` 用于快速收集，`projects.org` 保存活跃项目，`calendar.org` 保存约会和固定日程。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。
+日常文件位于 `~/org/`：`inbox.org` 是唯一的默认 Capture 入口；`work.org` 保存工作；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。
 
-Capture 会在底部约 35% 的窗口中打开 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消；无需手动切换到目标 `.org` 文件。
+Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消，随后自动恢复 Capture 前的窗口布局；无需手动切换到目标 `.org` 文件。Capture 默认处于 Evil Insert 状态，按 `ESC q` 也可取消。
 
-`C-c c t` 只需输入任务标题，先进入 Inbox。`C-c c p` 依次输入项目名称和第一项可执行的 `NEXT` 行动。`C-c c e` 依次输入日程名称、选择日期时间，再补充可选备注。
+`C-c c t` 只要求标题，创建时间自动记录；在 Capture Buffer 中可按需用 `C-c C-q` 添加标签、`C-c C-t` 修改状态、`C-c C-s` 设置计划时间、`C-c C-d` 设置截止时间，再补充说明。`C-c c w/p` 与 `C-c c W/P` 用于已明确归属的任务或项目。项目不强制要求多个子任务。`C-c c e` 直接记录名称、开始时间和备注。`C-c c j` 在当天日期下创建自由记录。
 
-Agenda 只读取这三个活跃文件。日程会在 30 分钟前开始显示桌面提醒，之后每 10 分钟重复提醒；桌面需要可用的通知服务。
+Agenda 读取 Inbox、工作、个人和日程四个文件；每日视图显示当天时间事项、可立即做的 NEXT，并在标题中显示 Inbox 待处理数量。日程会在 30 分钟前开始显示桌面提醒，之后每 10 分钟重复提醒；桌面需要可用的通知服务。
 
 Android 可使用 Orgzly Revived，将其 WebDAV 仓库指向与 `~/org/` 同步的远程目录。避免在手机与桌面同时编辑同一文件。
+
+Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calendar` 后双击任意日期可打开该日期的 Agenda。习惯任务可放在 `calendar.org` 的 `Habits` 标题下，或放在 `personal.org`；前者适合把所有周期性时间项集中查看，后者适合把习惯与个人项目放在一起。
+
+`org-modern` 已启用，用于美化 Org 标题、标签、TODO、复选框和表格。Refile 会一次性显示完整路径；选择带标题的目标，例如 `work.org/Tasks`，不要选择文件名本身。
+
+#### 临时窗口关闭
+
+Evil Normal 状态下，`q` 会关闭当前的 Popper 弹窗或侧边临时窗口，例如 Help、编译输出、Messages、Eat 与搜索结果；在普通编辑 Buffer 中，`q` 保持 Evil 的宏录制功能。`C-c \`` 仍用于显示或隐藏最近的 Popper，`M-\`` 用于循环切换。
 
 #### Agenda Buffer 操作
 

@@ -40,6 +40,8 @@
          (string-suffix-p "*" name))))
 (defvar my/tab-line-known-windows (make-hash-table :test #'eq)
   "已初始化私有标签列表的 Window。")
+(defvar my/tab-line-suspend-recording nil
+  "When non-nil, do not record internal buffer switches as tabs.")
 (defun my/tab-line-initialize-window (window)
   "为 WINDOW 建立只包含当前 Buffer 的私有标签列表。"
   (set-window-parameter window 'my-tab-line-buffers
@@ -71,7 +73,8 @@
     (set-window-parameter window 'tab-line-cache nil)))
 (defun my/tab-line-record-after-switch-to-buffer (&rest _)
   "在切换 Buffer 后更新当前 Window 的私有标签列表。"
-  (my/tab-line-record-window-buffer (selected-window) nil))
+  (unless my/tab-line-suspend-recording
+    (my/tab-line-record-window-buffer (selected-window) nil)))
 (defun my/tab-line-window-buffers ()
   "返回当前 Window 的私有标签列表，并追加新显示的 Buffer。"
   (let* ((window (selected-window))
@@ -277,7 +280,8 @@
 (defun my/setup-font ()
   (interactive)
   (let* ((font-size 15)
-         ;; 英文/基础字体
+         (cjk-font-scale 0.9)
+          ;; 英文/基础字体
           (efl my/programming-font-families)
          ;; 中文字体
           (cfl my/cjk-font-families)
@@ -291,10 +295,10 @@
     (when ef
       (set-face-attribute 'default nil :family ef :height 140))
     ;; B. 设置中文字体 (han 字符集)
-    (when cf
-      (set-fontset-font t 'han (font-spec :family cf))
-      (set-fontset-font t 'cjk-misc (font-spec :family cf))
-      (setq face-font-rescale-alist `((,cf . 1))))
+     (when cf
+       (set-fontset-font t 'han (font-spec :family cf))
+       (set-fontset-font t 'cjk-misc (font-spec :family cf))
+       (setq face-font-rescale-alist `((,cf . ,cjk-font-scale))))
     ;; C. 设置符号字体 (注意：Elisp 中十六进制必须用 #x 开头)
     (when sf
       ;; 基础符号

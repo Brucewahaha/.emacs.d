@@ -9,6 +9,7 @@
 ;; 2. Popper: 實現 Doom 的 Popup 彈出窗口管理
 (use-package popper
   :ensure t
+  :demand t
   :bind (("C-c `"   . popper-toggle)    ; 切換最近的彈出窗口
          ("M-`"   . popper-cycle)            ; 在多個彈出窗口間循環
          ("C-M-`" . popper-toggle-type))     ; 將普通窗口提升為彈出窗口
@@ -30,8 +31,35 @@
           grep-mode
           occur-mode))
   :config
-  (popper-mode 1)
-  (popper-echo-mode 1)) ; 在底欄提示當前有幾個彈出窗口
+   (popper-mode 1)
+   (popper-echo-mode 1)) ; 在底欄提示當前有幾個彈出窗口
+
+(defun my/popper-buffer-p ()
+  "Return non-nil when the current buffer is configured as a Popper buffer."
+  (and (bound-and-true-p popper-mode)
+       (popper-popup-p (current-buffer))))
+
+(defun my/temporary-window-p ()
+  "Return non-nil when the selected window is safe to quit with `q'."
+  (or (bound-and-true-p org-capture-mode)
+      (my/popper-buffer-p)
+      (window-parameter (selected-window) 'window-side)))
+
+(defun my/quit-temporary-window ()
+  "Cancel a capture or close the selected temporary window."
+  (interactive)
+  (if (bound-and-true-p org-capture-mode)
+      (org-capture-kill)
+    (quit-window nil (selected-window))
+    (when (fboundp 'popper--update-popups)
+      (popper--update-popups))))
+
+(defun my/evil-quit-temporary-window-or-record-macro ()
+  "Close a temporary window with `q', otherwise start an Evil macro."
+  (interactive)
+  (if (my/temporary-window-p)
+      (my/quit-temporary-window)
+    (call-interactively #'evil-record-macro)))
 
 ;; 3. Ace-window: 快速跳轉窗口 (Doom 的 SPC w w)
 (use-package ace-window
@@ -47,6 +75,8 @@
 
 ;; 5. 強化 Evil 模式下的窗口快捷鍵 (如果你使用 Evil)
 (with-eval-after-load 'evil
+  (define-key evil-normal-state-map (kbd "q")
+              #'my/evil-quit-temporary-window-or-record-macro)
   (define-key evil-window-map (kbd "u") 'winner-undo)
   (define-key evil-window-map (kbd "C-r") 'winner-redo)
   (define-key evil-window-map (kbd "o") 'ace-window)
