@@ -16,6 +16,9 @@
 ;; 核心引导 (包管理与基础工具)
 (setq custom-file (locate-user-emacs-file "custom.el"))
 (require 'init-utils)     ; 包含基础函数和文件操作
+(defconst my/local-config-file (locate-user-emacs-file "local.el"))
+(when (file-exists-p my/local-config-file)
+  (load my/local-config-file nil 'nomessage))
 (require 'init-site-lisp) ; 手动安装的包
 (require 'init-elpa)      ; 镜像源与 use-package 设置
 (require 'init-environment)

@@ -4,13 +4,22 @@
 (use-package eglot
   :ensure nil
   :init
+  (defun my/eglot-clangd-install-hint ()
+    "Return a platform-appropriate clangd installation hint."
+    (cond
+     (my/windows-p "Install LLVM/clangd: winget install LLVM.LLVM")
+     (my/macos-p "Install LLVM/clangd: brew install llvm")
+     (t "Install clangd, for example: sudo apt install clangd")))
+
   (defvar my/eglot-missing-server-notifications (make-hash-table :test #'equal)
     "Projects and modes for which a missing Eglot server was reported.")
 
   (defconst my/eglot-install-hints
-    '((python-ts-mode . "Install one server, for example: pipx install basedpyright")
-      (c-ts-mode . "Install clangd, for example: sudo apt install clangd")
-      (c++-ts-mode . "Install clangd, for example: sudo apt install clangd")
+     `((python-ts-mode . "Install one server, for example: pipx install basedpyright")
+        (c-mode . ,(my/eglot-clangd-install-hint))
+        (c++-mode . ,(my/eglot-clangd-install-hint))
+        (c-ts-mode . ,(my/eglot-clangd-install-hint))
+       (c++-ts-mode . ,(my/eglot-clangd-install-hint))
       (js-ts-mode . "Install TypeScript support: npm install -g typescript typescript-language-server")
       (typescript-ts-mode . "Install TypeScript support: npm install -g typescript typescript-language-server")
       (tsx-ts-mode . "Install TypeScript support: npm install -g typescript typescript-language-server")
@@ -49,8 +58,10 @@
                     (or (alist-get major-mode my/eglot-install-hints)
                         "Install a server listed in `eglot-server-programs'."))
             :warning))))))
-  :hook ((python-ts-mode . my/eglot-ensure)
-         (c-ts-mode . my/eglot-ensure)
+   :hook ((python-ts-mode . my/eglot-ensure)
+          (c-mode . my/eglot-ensure)
+          (c++-mode . my/eglot-ensure)
+          (c-ts-mode . my/eglot-ensure)
          (c++-ts-mode . my/eglot-ensure)
          (js-ts-mode . my/eglot-ensure)
          (typescript-ts-mode . my/eglot-ensure)
@@ -80,6 +91,16 @@
 (use-package consult-eglot
   :ensure t
   :after (eglot consult))
+
+(use-package eldoc-box
+  :ensure t
+  :after eglot
+  :demand t
+  :config
+  (setq eldoc-box-clear-with-C-g t)
+  (with-eval-after-load 'evil
+    (evil-define-key 'normal eglot-mode-map (kbd "g h")
+      #'eldoc-box-help-at-point)))
 
 (provide 'init-lsp)
 ;;; init-lsp.el ends here

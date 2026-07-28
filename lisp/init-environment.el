@@ -1,6 +1,8 @@
 ;;; init-environment.el --- Locale, shell environment and direnv -*- lexical-binding: t -*-
 ;;; Code:
 
+(require 'subr-x)
+
 ;; 编码与 locale
 (defun sanityinc/locale-var-encoding (value)
   "Return the encoding portion of locale string VALUE, or nil if missing."
@@ -24,6 +26,17 @@
 (when (eq system-type 'windows-nt)
   (setq selection-coding-system 'utf-16le-dos)
   (set-next-selection-coding-system 'utf-16le-dos))
+
+(when my/extra-exec-paths
+  (let ((separator (if (characterp path-separator)
+                       (char-to-string path-separator)
+                     path-separator)))
+    (dolist (directory (reverse my/extra-exec-paths))
+      (when (file-directory-p directory)
+        (add-to-list 'exec-path directory)))
+    (setenv "PATH" (string-join (append my/extra-exec-paths
+                                         (list (getenv "PATH")))
+                                separator))))
 
 ;; Shell 环境变量
 (when (require 'exec-path-from-shell nil t)

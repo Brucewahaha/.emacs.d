@@ -7,7 +7,7 @@
   :config
   (require 'dired-x)
   (setq dired-recursive-copies 'always
-        dired-recursive-deletes 'always
+        dired-recursive-deletes 'top
         dired-omit-files "^\\..+"
         dired-auto-revert-buffer t
         dired-dwim-target t

@@ -22,12 +22,16 @@
   
   ;; 核心：智能识别 Shell 程序
   (setq eat-shell-file-name
-        (if (or (eq system-type 'gnu/linux)
-                (string-match-p "wsl" (or (getenv "WSL_DISTRO_NAME") "")))
-            (if (executable-find "zsh") "/bin/zsh" "bin/bash")  ; WSL 使用 Zsh
-          (if (executable-find "pwsh.exe") 
-              "pwsh.exe" 
-            "powershell.exe"))) ; Windows 优先使用 PowerShell Core
+        (cond
+         (my/windows-p
+          (or (executable-find "pwsh.exe")
+              (executable-find "powershell.exe")
+              shell-file-name))
+         ((or my/linux-p my/macos-p)
+          (or (executable-find "zsh")
+              (executable-find "bash")
+              shell-file-name))
+         (t shell-file-name)))
 
   ;; 2. 实现 VS Code 样式的底部弹出逻辑
   ;; 这里的配置确保 eat 窗口始终在底部弹出并占用 20% 空间

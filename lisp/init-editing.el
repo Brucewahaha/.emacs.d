@@ -58,9 +58,14 @@
   :ensure nil
   :hook (after-init . delete-selection-mode))
 
-;; 文件保存
+;; 文件恢复：自动保存集中到配置目录，不在项目中留下临时文件。
+(defconst my/auto-save-directory
+  (expand-file-name "auto-save/" user-emacs-directory))
+(make-directory my/auto-save-directory t)
 (setq make-backup-files nil
-      auto-save-default nil)
+      auto-save-default t
+      auto-save-file-name-transforms
+      `((".*" ,my/auto-save-directory t)))
 
 (provide 'init-editing)
 ;;; init-editing.el ends here

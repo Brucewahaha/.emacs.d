@@ -209,11 +209,8 @@
 
 (defun my/org-appt-display (minutes time message)
   "Display an appointment notification MINUTES before TIME with MESSAGE."
-  (when (fboundp 'notifications-notify)
-    (notifications-notify
-     :title (format "%s 分钟后有日程" minutes)
-     :body (format "%s (%s)" message time)
-     :urgency 'normal))
+  (my/notify (format "%s 分钟后有日程" minutes)
+             (format "%s (%s)" message time))
   (appt-disp-window minutes time message))
 
 (defun my/org-refresh-appts ()

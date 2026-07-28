@@ -217,6 +217,10 @@ Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calend
 
 `org-modern` 已启用，用于美化 Org 标题、标签、TODO、复选框和表格。Refile 会一次性显示完整路径；选择带标题的目标，例如 `work.org/Tasks`，不要选择文件名本身。
 
+### 跨平台本机设置
+
+配置支持 Linux、macOS 与 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包镜像、外部工具路径和通知后端；`local.el` 不会提交到 Git。Linux 默认使用 TUNA 镜像和 D-Bus 通知，macOS 默认使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。
+
 #### 临时窗口关闭
 
 Evil Normal 状态下，`q` 会关闭当前的 Popper 弹窗或侧边临时窗口，例如 Help、编译输出、Messages、Eat 与搜索结果；在普通编辑 Buffer 中，`q` 保持 Evil 的宏录制功能。`C-c \`` 仍用于显示或隐藏最近的 Popper，`M-\`` 用于循环切换。
@@ -251,6 +255,13 @@ C-c l              保存 Org Link
 ```
 
 `C-c c` 和 `C-c a` 可在任何 Buffer 中调用。
+
+### 代码文档
+
+```text
+g h                在 Eglot 管理的代码中显示光标处符号的悬浮文档
+K                  在回显区显示光标处符号的简要文档
+```
 
 ## 启动性能
 

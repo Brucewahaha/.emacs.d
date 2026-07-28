@@ -5,6 +5,7 @@
 # 2. 排除（即保留）你想要的文件和文件夹
 !/init.el
 !/README.md
+!/local.example.el
 !/lisp/
 !/.gitignore
 !/site-lisp/

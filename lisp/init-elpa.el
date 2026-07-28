@@ -14,10 +14,12 @@
 
 ;;; Standard package repositories
 
-;; 1. 先用 setq 定义清华镜像源（这会覆盖掉 Emacs 默认的 gnu 源，确保在中国访问顺畅）
-(setq package-archives '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
-                         ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
-                         ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
+;; 1. 默认使用清华镜像，本机可通过 local.el 覆盖。
+(setq package-archives
+      (or my/package-archives-override
+          '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+            ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
+            ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/"))))
 ;; 2. 只保留一个 MELPA 源，避免相同包名被后加入的源覆盖。
 (setq package-archive-priorities '(("melpa" . 10)
                                    ("gnu" . 0)

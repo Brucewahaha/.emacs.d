@@ -2,6 +2,38 @@
 ;;; Commentary:
 ;;; Code:
 
+(defconst my/windows-p (eq system-type 'windows-nt))
+(defconst my/macos-p (memq system-type '(darwin ns)))
+(defconst my/linux-p (eq system-type 'gnu/linux))
+(defconst my/wsl-p (and my/linux-p (getenv "WSL_DISTRO_NAME")))
+
+(defvar my/package-archives-override nil
+  "Package archives supplied by a machine-local configuration.")
+(defvar my/extra-exec-paths nil
+  "Directories prepended to `exec-path' by a machine-local configuration.")
+(defvar my/notification-function nil
+  "Optional function accepting TITLE and BODY for desktop notifications.")
+
+(defun my/notify (title body)
+  "Send a desktop notification with TITLE and BODY, or show a message."
+  (or (and my/notification-function
+           (funcall my/notification-function title body))
+      (and my/linux-p
+           (fboundp 'notifications-notify)
+           (condition-case nil
+               (progn
+                 (notifications-notify :title title :body body :urgency 'normal)
+                 t)
+             (error nil)))
+      (and my/macos-p
+           (executable-find "osascript")
+           (progn
+             (start-process
+              "emacs-notification" nil "osascript" "-e"
+              (format "display notification %S with title %S" body title))
+             t))
+      (message "%s: %s" title body)))
+
 (defun sanityinc/display-buffer-full-frame (buffer alist)
   "If it's not visible, display buffer full-frame, saving the prior window config.
 The saved config will be restored when the window is quit later.
@@ -104,10 +136,10 @@ BUFFER and ALIST are as for `display-buffer-full-frame'."
   "Open the current file as a URL using `browse-url'."
   (interactive)
   (let ((file-name (buffer-file-name)))
-    (if (and (fboundp 'tramp-tramp-file-p)
-             (tramp-tramp-file-p file-name))
-        (error "Cannot open tramp file")
-      (browse-url (concat "file://" file-name)))))
+      (if (and (fboundp 'tramp-tramp-file-p)
+               (tramp-tramp-file-p file-name))
+          (error "Cannot open tramp file")
+      (browse-url-of-file file-name))))
 
 
 (provide 'init-utils)
