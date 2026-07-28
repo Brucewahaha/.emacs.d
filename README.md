@@ -131,25 +131,26 @@ C-c b n / p        跳到下一个 / 上一个编译错误
 
 ### 文件管理
 
-使用 `C-x d` 打开 Dired；`C-x C-j` 会打开当前文件所属目录并定位到该文件。Evil Normal 状态下：
+使用 `C-x d` 打开 Dired；`C-x C-j` 会打开当前文件所属目录并定位到该文件。进入其他目录时会自动关闭当前 Dired Buffer，避免目录 Buffer 和 Tab 不断累积。Evil Normal 状态下：
 
 ```text
-h                  返回上级目录
-l                  打开文件或进入目录
-H                  显示/隐藏隐藏文件
+j / k              下移 / 上移
+h / l              左移 / 右移光标
+RET / gf           打开文件或进入目录
+- / ^              返回上级目录
 m / u / U          标记 / 取消标记 / 清除全部标记
 C / R              复制 / 移动或重命名当前或标记文件
 d / x              标记删除 / 执行全部已标记删除
 D                  立即删除当前或标记文件
 +                  新建目录
 Y                  复制当前文件名
-r                  刷新目录
+g r                刷新目录
 q                  关闭 Dired Window
-i / C-c C-e        进入 Wdired 重命名模式
+i                  进入 Wdired 重命名模式
 TAB                展开或收起子目录
 ```
 
-Wdired 中使用 `C-c C-c` 提交重命名，`C-c C-k` 放弃修改。需要批量修改文件名时，可选中共同片段后按 `S-r`，或重复按 `M-d` 添加匹配，再统一编辑。
+Wdired 默认进入 Evil Normal 状态，按 `i`、`a` 等进入 Insert 编辑文件名，按 `ESC` 返回 Normal 但不退出 Wdired。使用 `ZZ` 或 `C-c C-c` 提交修改，使用 `ZQ` 或 `C-c C-k` 放弃修改。需要批量修改文件名时，可选中共同片段后按 `S-r`，或重复按 `M-d` 添加匹配，再统一编辑。
 
 ### Treemacs
 
