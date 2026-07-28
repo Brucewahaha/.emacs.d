@@ -30,18 +30,14 @@
 
   :config
   (evil-mode 1)
-  ;; 确保在 Insert 模式下 ESC 依然能回到 Normal 模式
-  (define-key evil-insert-state-map [escape] 'evil-normal-state)
-   (define-key evil-normal-state-map (kbd "[ SPC") (lambda () (interactive) (evil-insert-newline-above) (forward-line)))
-   (define-key evil-normal-state-map (kbd "] SPC") (lambda () (interactive) (evil-insert-newline-below) (forward-line -1)))
    ;; 文件树快捷键，仅覆盖 Evil Normal 状态。
    (define-key evil-normal-state-map (kbd "C-e") #'my/treemacs-toggle-current-project)
 
     ;; tab-line 使用当前 Window 的标签序列，[b 向左，]b 向右。
-   (define-key evil-normal-state-map (kbd "[ b") #'my/tab-line-switch-to-prev-tab)
-   (define-key evil-normal-state-map (kbd "] b") #'my/tab-line-switch-to-next-tab)
-   (define-key evil-motion-state-map (kbd "[ b") #'my/tab-line-switch-to-prev-tab)
-   (define-key evil-motion-state-map (kbd "] b") #'my/tab-line-switch-to-next-tab)
+   (define-key evil-normal-state-map (kbd "[ b") #'tab-line-switch-to-prev-tab)
+   (define-key evil-normal-state-map (kbd "] b") #'tab-line-switch-to-next-tab)
+   (define-key evil-motion-state-map (kbd "[ b") #'tab-line-switch-to-prev-tab)
+   (define-key evil-motion-state-map (kbd "] b") #'tab-line-switch-to-next-tab)
    (dotimes (index 9)
      (let ((index (1+ index)))
        (define-key evil-normal-state-map (kbd (format "C-S-%d" index))
@@ -63,23 +59,22 @@
   
   ;; Eglot 相关快捷键绑定 (Normal 模式下生效)
   (with-eval-after-load 'eglot
-    (evil-define-key 'normal eglot-mode-map (kbd "g d") 'eglot-find-definition)
-    (evil-define-key 'normal eglot-mode-map (kbd "g r") 'xref-find-references)
     (evil-define-key 'normal eglot-mode-map (kbd "K")   'eldoc)))
   
 ;; 3. Evil in terminal
-(when (not (display-graphic-p))
-  ;; 定义修改光标形状的函数
-  (defun my-terminal-cursor-shape-block ()
-    (send-string-to-terminal "\e[2 q")) ;; 2 代表方块 (Block)
-  (defun my-terminal-cursor-shape-bar ()
-    (send-string-to-terminal "\e[6 q")) ;; 6 代表竖线 (Bar)
-  ;; 在进入 Insert 模式时变为 竖线，退出时（进入 Normal）变为 方块
-  (add-hook 'evil-insert-state-entry-hook 'my-terminal-cursor-shape-bar)
-  (add-hook 'evil-insert-state-exit-hook 'my-terminal-cursor-shape-block)
-  
-  ;; 确保 Emacs 启动时默认就是方块（Normal 模式）
-  (my-terminal-cursor-shape-block))
+(defun my-terminal-cursor-shape-block ()
+  "Use a block cursor in the selected terminal frame."
+  (unless (display-graphic-p)
+    (send-string-to-terminal "\e[2 q")))
+
+(defun my-terminal-cursor-shape-bar ()
+  "Use a bar cursor in the selected terminal frame."
+  (unless (display-graphic-p)
+    (send-string-to-terminal "\e[6 q")))
+
+(add-hook 'evil-insert-state-entry-hook #'my-terminal-cursor-shape-bar)
+(add-hook 'evil-insert-state-exit-hook #'my-terminal-cursor-shape-block)
+(my-terminal-cursor-shape-block)
 
 ;; 强制设置 region 在终端下的颜色
 (defun my/fix-terminal-faces ()
@@ -110,22 +105,8 @@
   (evil-collection-init)
   ;; 覆盖 unimpaired 的全局 Buffer 历史切换，统一按当前 Window 标签顺序切换。
   (evil-collection-define-key 'normal 'evil-collection-unimpaired-mode-map
-    "[b" #'my/tab-line-switch-to-prev-tab
-    "]b" #'my/tab-line-switch-to-next-tab)
-  ;; 终端和多数图形环境将 Shift+数字解释为标点字符。
-  (dolist (key '("!" "@" "#" "$" "%" "^" "&" "*" "("))
-    (evil-collection-define-key 'normal 'evil-collection-unimpaired-mode-map
-      key nil)
-    (evil-collection-define-key 'normal 'evil-collection-unimpaired-mode-map
-      (concat "C-" key) #'my/tab-line-switch-to-control-shift-index)))
-
-(use-package iedit
-  :ensure t
-  :init
-  (setq iedit-toggle-key-default nil)
-  :config
-  (define-key iedit-mode-keymap (kbd "M-h") 'iedit-restrict-function)
-  (define-key iedit-mode-keymap (kbd "M-i") 'iedit-restrict-current-line))
+    "[b" #'tab-line-switch-to-prev-tab
+    "]b" #'tab-line-switch-to-next-tab))
 
 (use-package evil-multiedit
   :ensure t

@@ -3,13 +3,23 @@
 ;;; This file replaces Ivy/Counsel with the Vertico + Consult + Embark stack.
 ;;; Code:
 
+(require 'thingatpt)
+
+(defun my/consult-ripgrep-dwim ()
+  "Search with Ripgrep, initially using the region or symbol at point."
+  (interactive)
+  (consult-ripgrep
+   nil
+   (if (use-region-p)
+       (buffer-substring-no-properties (region-beginning) (region-end))
+     (thing-at-point 'symbol t))))
+
 ;; =============================================================================
 ;; 1. 基础 UI 与体验增强 (保持原有功能)
 ;; =============================================================================
 (use-package emacs
   :init
   (recentf-mode 1)
-  (savehist-mode 1)
   (save-place-mode 1)
   (global-auto-revert-mode 1)
   (setq history-length 25))
@@ -110,7 +120,7 @@
          ;; --- 修复 M-s 冲突的部分 ---
          ;; 我们将这些命令绑定到 search-map (通常就是 M-s 键)
          :map search-map
-         ("r" . consult-ripgrep)         ; 对应 M-s r
+         ("r" . my/consult-ripgrep-dwim) ; 对应 M-s r
          ("g" . consult-git-grep))       ; 对应 M-s g
   :hook (completion-list-mode . consult-preview-at-point-mode)
   :init

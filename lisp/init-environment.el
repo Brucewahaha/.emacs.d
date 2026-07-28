@@ -27,17 +27,6 @@
   (setq selection-coding-system 'utf-16le-dos)
   (set-next-selection-coding-system 'utf-16le-dos))
 
-(when my/extra-exec-paths
-  (let ((separator (if (characterp path-separator)
-                       (char-to-string path-separator)
-                     path-separator)))
-    (dolist (directory (reverse my/extra-exec-paths))
-      (when (file-directory-p directory)
-        (add-to-list 'exec-path directory)))
-    (setenv "PATH" (string-join (append my/extra-exec-paths
-                                         (list (getenv "PATH")))
-                                separator))))
-
 ;; Shell 环境变量
 (when (require 'exec-path-from-shell nil t)
   (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG"
@@ -47,6 +36,25 @@
             (unless (memq system-type '(ms-dos windows-nt))
               (daemonp)))
     (exec-path-from-shell-initialize)))
+
+(defun my/prepend-exec-paths (directories)
+  "Prepend existing DIRECTORIES to both `exec-path' and PATH."
+  (let* ((separator (if (characterp path-separator)
+                        (char-to-string path-separator)
+                      path-separator))
+         (directories
+          (delete-dups
+           (seq-filter #'file-directory-p
+                       (mapcar #'expand-file-name directories))))
+         (environment-path
+          (split-string (or (getenv "PATH") "") separator t)))
+    (setq exec-path (delete-dups (append directories exec-path)))
+    (setenv "PATH"
+            (string-join (delete-dups (append directories environment-path))
+                         separator))))
+
+;; Local additions must be merged after importing the login shell environment.
+(my/prepend-exec-paths my/extra-exec-paths)
 
 ;; direnv
 (when (require 'envrc nil t)

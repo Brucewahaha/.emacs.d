@@ -4,7 +4,7 @@
 (require 'appt)
 (require 'notifications nil t)
 
-(setq org-directory (expand-file-name "org" (getenv "HOME")))
+(setq org-directory (expand-file-name "~/org"))
 
 (defconst my/org-inbox-file (expand-file-name "inbox.org" org-directory))
 (defconst my/org-work-file (expand-file-name "work.org" org-directory))
@@ -61,11 +61,10 @@
 
 (defun my/org-capture-template (key)
   "Capture with template KEY and focus its temporary editing buffer."
-  (let ((my/tab-line-suspend-recording t))
-    (org-capture nil key)
-    (when-let* ((marker (org-capture-get :begin-marker))
-                (buffer (marker-buffer marker)))
-      (switch-to-buffer buffer))))
+  (org-capture nil key)
+  (when-let* ((marker (org-capture-get :begin-marker))
+              (buffer (marker-buffer marker)))
+    (switch-to-buffer buffer)))
 
 (defun my/org-capture-task ()
   "Capture a task in the inbox."

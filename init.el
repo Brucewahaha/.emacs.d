@@ -6,7 +6,6 @@
 ;; 基础性能与目录设置
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (require 'init-benchmarking)
-(defconst *is-a-mac* (eq system-type 'darwin))
 
 ;; 性能优化 (GC & Process)
 (setq gc-cons-threshold (* 128 1024 1024))

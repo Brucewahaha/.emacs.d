@@ -5,9 +5,9 @@
 ## 前提
 
 - Emacs 30.1
-- Linux/WSL 下建议安装 `zsh`，Eat 会优先启动 `/bin/zsh`
+- Linux、WSL 和 macOS 下建议安装 `zsh`；也可在 `local.el` 指定 Eat 使用的 shell
 - 按需安装语言服务器，例如 `clangd`、`basedpyright`、`gopls`、`rust-analyzer`
-- 首次使用前确认 ELPA 镜像可访问；已安装包不会在正常启动时联网安装
+- 首次使用或缺包时确认 ELPA 镜像可访问；包与 grammar 齐全后正常启动不会联网
 
 ## 配置结构
 
@@ -19,12 +19,12 @@
 | `init-editing.el` | Tree-sitter、缩进、括号、基础编辑行为 |
 | `init-lsp.el` | Eglot、Flymake、Consult-Eglot |
 | `init-completion.el` | Corfu、Cape、Yasnippet、补全开关 |
-| `init-project.el` | Projectile、Magit |
+| `init-project.el` | Project、Compilation Mode、Projectile、Magit |
 | `init-dired.el` | Dired、Wdired、Dired Subtree |
 | `init-treemacs.el` | Treemacs、项目文件树 |
 | `init-term.el` | Eat、Eshell 集成 |
 | `init-evil.el` | Evil、Evil Collection、多光标、快捷键 |
-| `init-org.el` / `init-sicp.el` | Org、Scheme、SICP |
+| `init-org.el` / `init-sicp.el` | Org、Scheme、SICP、Lisp 结构化编辑 |
 
 ## 主要插件
 
@@ -51,10 +51,10 @@ Pyim 使用小鹤双拼方案，候选词默认在光标附近显示。
 ### 主题
 
 ```text
-C-c t t            在 Doric Fire 夜间主题与 Doric Jade 浅色主题之间切换
+C-c t t            在 Doom Wilmersdorf 夜间主题与 Doric Jade 浅色主题之间切换
 ```
 
-Doom Themes 的集成配置保留为备选，但当前不会加载或启用。
+Doom Themes 的 Org、Treemacs 与视觉铃声集成在两种主题下都保留。
 
 ### 代码模板
 
@@ -63,6 +63,14 @@ Yasnippet 提供常用代码片段的展开和占位符跳转。
 ```text
 S-TAB              展开当前模板，或跳转到下一个模板字段
 ```
+
+### Tree-sitter
+
+仅在对应 grammar 可用时自动启用 TS Mode，缺失或不兼容时回退到传统 Major Mode。`tree-sitter/` 中的二进制与操作系统、CPU 架构和 Emacs ABI 相关，不应直接跨系统复用；使用 `M-x treesit-auto-install-all` 显式安装或重建本机 grammar。打开文件和正常启动不会自动下载。
+
+### 缩进与括号
+
+项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
 
 ### 候选项操作
 
@@ -76,7 +84,7 @@ C-h B              查看当前快捷键绑定
 
 ### 弹窗窗口
 
-帮助、编译输出、诊断、消息和 Eat 终端等临时 Buffer 由 Popper 统一管理，不打断主编辑窗口布局。
+帮助、编译输出、诊断、消息和平台终端等临时 Buffer 由 Popper 统一管理，不打断主编辑窗口布局。
 
 ```text
 C-c `              显示或隐藏最近的弹窗
@@ -114,27 +122,34 @@ C-c p f            在当前 Projectile 项目中查找文件
 C-c p p            切换项目
 M-s r              使用 ripgrep 搜索项目或目录内容
 C-x g              打开 Magit Status
+C-c b c            在当前项目根目录选择并执行编译命令
+C-c b r            保存修改并重复当前项目的上一次编译
+C-c b n / p        跳到下一个 / 上一个编译错误
 ```
+
+`M-s r` 会优先把选区或光标处符号作为初始搜索内容。编译输出由 Compilation Mode 解析，错误位置可以直接跳回源文件。
 
 ### 文件管理
 
-使用 `C-x d` 打开 Dired。Evil Normal 状态下：
+使用 `C-x d` 打开 Dired；`C-x C-j` 会打开当前文件所属目录并定位到该文件。Evil Normal 状态下：
 
 ```text
 h                  返回上级目录
 l                  打开文件或进入目录
 H                  显示/隐藏隐藏文件
-a                  新建文件；以 / 结尾则新建目录
-r                  重命名当前或标记文件
-c                  复制当前路径
-v                  将复制路径的文件或目录复制到当前目录
-d                  删除当前或标记文件
-\                  关闭 Dired Window
+m / u / U          标记 / 取消标记 / 清除全部标记
+C / R              复制 / 移动或重命名当前或标记文件
+d / x              标记删除 / 执行全部已标记删除
+D                  立即删除当前或标记文件
++                  新建目录
+Y                  复制当前文件名
+r                  刷新目录
+q                  关闭 Dired Window
 i / C-c C-e        进入 Wdired 重命名模式
 TAB                展开或收起子目录
 ```
 
-Wdired 中使用 `C-c C-c` 提交重命名，`C-c C-k` 放弃修改。
+Wdired 中使用 `C-c C-c` 提交重命名，`C-c C-k` 放弃修改。需要批量修改文件名时，可选中共同片段后按 `S-r`，或重复按 `M-d` 添加匹配，再统一编辑。
 
 ### Treemacs
 
@@ -179,10 +194,10 @@ C-g                退出多光标会话
 ### 终端
 
 ```text
-C-`                打开或关闭 Eat 终端
+C-`                打开或关闭平台终端
 ```
 
-Eat 是主终端，会优先使用 zsh；Eshell 保留用于 Emacs 内部对象和轻量命令。
+Linux、WSL 和 macOS 使用 Eat，并优先选择 `local.el` 指定的 shell、zsh 或 bash。原生 Windows 使用底部 Eshell，避免 Eat 对 Unix `/usr/bin/env` 的依赖。Eat 加载后也会接管 Eshell 中需要完整终端能力的交互程序。
 
 ### Org 日程与项目
 
@@ -219,11 +234,13 @@ Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calend
 
 ### 跨平台本机设置
 
-配置支持 Linux、macOS 与 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包镜像、外部工具路径和通知后端；`local.el` 不会提交到 Git。Linux 默认使用 TUNA 镜像和 D-Bus 通知，macOS 默认使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。
+配置支持 Linux、WSL、macOS 与原生 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包镜像、外部工具路径、Eat shell 和通知后端；`local.el` 不会提交到 Git。登录 shell 环境会先导入，再将 `my/extra-exec-paths` 中真实存在的目录加入 `PATH` 与 `exec-path`。
+
+Linux 默认使用 TUNA 镜像和 D-Bus 通知，macOS 默认使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Modeline 图标、Dired 图标和平滑滚动。
 
 #### 临时窗口关闭
 
-Evil Normal 状态下，`q` 会关闭当前的 Popper 弹窗或侧边临时窗口，例如 Help、编译输出、Messages、Eat 与搜索结果；在普通编辑 Buffer 中，`q` 保持 Evil 的宏录制功能。`C-c \`` 仍用于显示或隐藏最近的 Popper，`M-\`` 用于循环切换。
+Evil Normal 状态下，`q` 会关闭当前的 Popper 弹窗或侧边临时窗口，例如 Help、编译输出、Messages、Eat、Eshell 与搜索结果；在普通编辑 Buffer 中，`q` 保持 Evil 的宏录制功能。`C-c \`` 仍用于显示或隐藏最近的 Popper，`M-\`` 用于循环切换。
 
 #### Agenda Buffer 操作
 

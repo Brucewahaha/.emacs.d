@@ -18,7 +18,20 @@
          ("C-h k" . helpful-key)))
 
 ;; 滚动优化
-(use-package good-scroll :ensure t :if window-system :init (good-scroll-mode))
+(defun my/enable-good-scroll-on-graphical-frame (frame)
+  "Enable Good Scroll after a graphical FRAME is available."
+  (with-selected-frame frame
+    (when (display-graphic-p)
+      (good-scroll-mode 1))))
+
+(use-package good-scroll
+  :ensure t
+  :commands good-scroll-mode
+  :init
+  (add-hook 'after-make-frame-functions
+            #'my/enable-good-scroll-on-graphical-frame)
+  (when (display-graphic-p)
+    (good-scroll-mode 1)))
 
 (use-package pyim
   :ensure t

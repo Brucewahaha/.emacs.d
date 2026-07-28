@@ -11,8 +11,17 @@
 
 ;; Add machine-specific tools such as LLVM, Git, Node, or a package manager.
 ;; (setq my/extra-exec-paths
-;;       '("/opt/homebrew/opt/llvm/bin"
-;;         "C:/Program Files/LLVM/bin"))
+;;       (cond
+;;        ((eq system-type 'darwin)
+;;         '("/opt/homebrew/bin" "/opt/homebrew/opt/llvm/bin"))
+;;        ((eq system-type 'windows-nt)
+;;         '("C:/Program Files/LLVM/bin"))
+;;        (t
+;;         '("~/.local/bin"))))
+
+;; Choose the shell launched by Eat on Linux, WSL, or macOS.
+;; Native Windows uses Eshell instead of Eat.
+;; (setq my/preferred-shell "/bin/zsh")
 
 ;; Provide a Windows Toast notification backend when BurntToast is installed.
 ;; (setq my/notification-function

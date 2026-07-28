@@ -31,10 +31,22 @@
 (add-hook 'c-ts-mode-hook
           (lambda () (setq-local c-ts-mode-indent-offset 4)))
 
+(defun my/dtrt-indent-maybe-enable ()
+  "Detect indentation without overriding explicit EditorConfig settings."
+  (when (and buffer-file-name
+             (derived-mode-p 'prog-mode 'text-mode))
+    (let ((properties
+           (editorconfig-call-get-properties-function buffer-file-name)))
+      (setq-local dtrt-indent-explicit-offset
+                  (and (gethash 'indent_size properties) t)
+                  dtrt-indent-explicit-tab-mode
+                  (and (gethash 'indent_style properties) t)))
+    (dtrt-indent-mode 1)))
+
 (use-package dtrt-indent
   :ensure t
   :diminish
-  :hook (after-init . dtrt-indent-global-mode)
+  :hook (hack-local-variables . my/dtrt-indent-maybe-enable)
   :config
   (setq dtrt-indent-verbosity 0))
 
