@@ -199,12 +199,10 @@
                                   cal-china-x-general-holidays
                                   calendar-holidays)))
 
-(ensure-lib-from-url
- 'org-modern
- "https://raw.githubusercontent.com/minad/org-modern/1.6/org-modern.el")
-(require 'org-modern)
-(add-hook 'org-mode-hook #'org-modern-mode)
-(add-hook 'org-agenda-finalize-hook #'org-modern-agenda)
+(use-package org-modern
+  :ensure t
+  :hook ((org-mode . org-modern-mode)
+         (org-agenda-finalize . org-modern-agenda)))
 
 (defun my/org-appt-display (minutes time message)
   "Display an appointment notification MINUTES before TIME with MESSAGE."

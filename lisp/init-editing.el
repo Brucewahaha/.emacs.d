@@ -50,18 +50,50 @@
   :config
   (setq dtrt-indent-verbosity 0))
 
+(defun my/indent-bars-maybe-enable ()
+  "Enable indentation bars after the buffer's indentation is settled."
+  (when (derived-mode-p 'prog-mode)
+    (require 'indent-bars-ts)
+    (indent-bars-mode 1)))
+
 (use-package indent-bars
   :ensure t
-  :hook (prog-mode . indent-bars-mode)
+  :init
+  ;; Run after EditorConfig, file-local variables and dtrt-indent.
+  (add-hook 'hack-local-variables-hook #'my/indent-bars-maybe-enable 90)
   :custom
-   (indent-bars-width-frac 0.1)
-   (indent-bars-pad-frac 0.1)
-   (indent-bars-pattern " .  ")
-   (indent-bars-zigzag nil)
-   (indent-bars-color '(default :face-bg t :blend 1))
-   (indent-bars-color-by-depth nil)
-   (indent-bars-highlight-current-depth
-    '(:face font-lock-keyword-face :blend 1 :width 0.18 :pattern ".")))
+  (indent-bars-prefer-character nil)
+  (indent-bars-no-stipple-char ?│)
+  (indent-bars-width-frac 0.1)
+  (indent-bars-pad-frac 0.0)
+  (indent-bars-pattern ".")
+  (indent-bars-zigzag nil)
+  (indent-bars-color '(default :face-bg t :blend 1))
+  (indent-bars-color-by-depth nil)
+  (indent-bars-highlight-current-depth
+   '(:face font-lock-keyword-face :blend 1
+     :width 0.12 :pad 0.0 :pattern "."))
+  (indent-bars-highlight-selection-method nil)
+  (indent-bars-depth-update-delay 0)
+  (indent-bars-treesit-support t)
+  (indent-bars-ts-styling-scope 'out-of-scope)
+  (indent-bars-ts-color
+   '(no-inherit default :face-bg t :blend 1))
+  (indent-bars-treesit-scope
+   '((python block)
+     (c compound_statement)
+     (cpp compound_statement)
+     (javascript statement_block)
+     (typescript statement_block)
+     (tsx statement_block)
+     (go block)
+     (rust block)
+     (bash compound_statement if_statement for_statement while_statement
+           function_definition case_statement subshell)
+     (ruby body_statement do_block block method class module)
+     (cmake body)))
+  (indent-bars-treesit-scope-min-lines 1)
+  (indent-bars-ts-highlight-current-depth '(no-inherit)))
 
 ;; 剪贴板与选区
 (setq select-enable-primary nil

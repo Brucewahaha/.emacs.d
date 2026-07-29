@@ -59,7 +59,9 @@
   
   ;; Eglot 相关快捷键绑定 (Normal 模式下生效)
   (with-eval-after-load 'eglot
-    (evil-define-key 'normal eglot-mode-map (kbd "K")   'eldoc)))
+    (evil-define-key 'normal eglot-mode-map
+      (kbd "K") #'eldoc
+      (kbd "g r") #'xref-find-references)))
   
 ;; 3. Evil in terminal
 (defun my-terminal-cursor-shape-block ()

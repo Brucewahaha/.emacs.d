@@ -1,8 +1,6 @@
 ;;; init.el --- Load the full configuration -*- lexical-binding: t -*-
 ;;; Code:
 
-(setq debug-on-error t)
-
 ;; 基础性能与目录设置
 (add-to-list 'load-path (expand-file-name "lisp" user-emacs-directory))
 (require 'init-benchmarking)
@@ -14,6 +12,8 @@
 
 ;; 核心引导 (包管理与基础工具)
 (setq custom-file (locate-user-emacs-file "custom.el"))
+(when (file-exists-p custom-file)
+  (load custom-file nil 'nomessage))
 (require 'init-utils)     ; 包含基础函数和文件操作
 (defconst my/local-config-file (locate-user-emacs-file "local.el"))
 (when (file-exists-p my/local-config-file)
@@ -35,6 +35,7 @@
 
 ;; --- 开发环境 ---
 (require 'init-project)    ; Magit/Projectile
+(require 'init-remote)     ; Fast SSH remote development
 (require 'init-editing)
 (require 'init-lsp)
 (require 'init-completion)
@@ -51,7 +52,6 @@
 ;; 杂项
 (require 'sudo-edit nil t)
 (require 'htmlize nil t)
-(when (file-exists-p custom-file) (load custom-file))
 
 (provide 'init)
 ;;; init.el ends here

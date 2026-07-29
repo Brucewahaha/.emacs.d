@@ -7,6 +7,7 @@
 - Emacs 30.1
 - Linux、WSL 和 macOS 下建议安装 `zsh`；也可在 `local.el` 指定 Eat 使用的 shell
 - 按需安装语言服务器，例如 `clangd`、`basedpyright`、`gopls`、`rust-analyzer`
+- 使用高速远程开发需要本机安装 Git、OpenSSH 和 SCP，并能通过 SSH 登录 Linux 或 macOS 远端
 - 首次使用或缺包时确认 ELPA 镜像可访问；包与 grammar 齐全后正常启动不会联网
 
 ## 配置结构
@@ -20,6 +21,7 @@
 | `init-lsp.el` | Eglot、Flymake、Consult-Eglot |
 | `init-completion.el` | Corfu、Cape、Yasnippet、补全开关 |
 | `init-project.el` | Project、Compilation Mode、Projectile、Magit |
+| `init-remote.el` | TRAMP、tramp-rpc 高速 SSH 远程开发 |
 | `init-dired.el` | Dired、Wdired、Dired Subtree |
 | `init-treemacs.el` | Treemacs、项目文件树 |
 | `init-term.el` | Eat、Eshell 集成 |
@@ -31,7 +33,7 @@
 - 编辑与 UI：`evil`、`doric-themes`、`doom-themes`、`doom-modeline`、`nerd-icons`
 - Minibuffer：`vertico`、`orderless`、`marginalia`、`consult`、`embark`
 - 代码补全：`corfu`、`cape`、`yasnippet`
-- 开发：内置 `eglot`、内置 `flymake`、`consult-eglot`、`treesit-auto`
+- 开发：内置 `eglot`、内置 `flymake`、`consult-eglot`、`treesit-auto`、`tramp-rpc`
 - 文件与项目：内置 `dired`、`dired-subtree`、`treemacs`、`projectile`、`magit`
 - 终端：`eat`、内置 `eshell`
 - 窗口与工具：`popper`、`ace-window`、`winner`、`avy`、`helpful`
@@ -66,11 +68,11 @@ S-TAB              展开当前模板，或跳转到下一个模板字段
 
 ### Tree-sitter
 
-仅在对应 grammar 可用时自动启用 TS Mode，缺失或不兼容时回退到传统 Major Mode。`tree-sitter/` 中的二进制与操作系统、CPU 架构和 Emacs ABI 相关，不应直接跨系统复用；使用 `M-x treesit-auto-install-all` 显式安装或重建本机 grammar。打开文件和正常启动不会自动下载。
+仅在对应 grammar 可用时自动启用 TS Mode，缺失或不兼容时回退到传统 Major Mode。`tree-sitter/` 中的二进制与操作系统、CPU 架构和 Emacs ABI 相关，不应直接跨系统复用；使用 `M-x treesit-auto-install-all` 显式安装或重建本机 grammar。打开文件和正常启动不会自动下载。Emacs 30.1 不接受 ABI 15 的 C parser，因此 C grammar 固定到 ABI 14 的 `tree-sitter-c v0.23.6`。
 
 ### 缩进与括号
 
-项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
+项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。缩进宽度确定后才启用 `indent-bars`：普通缩进线与背景融合，Tree-sitter 当前代码块中只高亮光标所在深度的一根连续竖线，颜色跟随当前主题。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
 
 ### 候选项操作
 
@@ -170,6 +172,9 @@ C-c t c            全局开关 Corfu 代码补全弹窗
 C-c t r            全局开关彩虹括号
 g d                Eglot 跳转定义
 g r                Eglot 查找引用
+M-,                返回上一次 Definition/Reference 跳转位置
+C-M-,              在 Xref 历史中向前
+C-o / C-i          在 Evil 的广义跳转历史中后退 / 前进
 K                  显示符号文档
 C-c l r            重命名符号
 C-c l a            Code Action
@@ -178,6 +183,19 @@ M-n / M-p          下一个 / 上一个 Flymake 诊断
 ```
 
 关闭代码补全弹窗不会关闭 Eglot、诊断、跳转、重命名或格式化功能。
+
+`g d` 跳到符号定义，`g r` 列出引用该符号的位置。`M-,` 只处理 Xref 跳转历史，返回定义或引用来源时最准确；`C-o` / `C-i` 还会包含搜索和其他 Evil 跳转。
+
+### 远程开发
+
+`tramp-rpc` 使用 SSH 上的 MessagePack RPC server 代替传统 TRAMP 的远端 shell 命令解析，适合远程文件、Eglot、Git/Magit、编译和终端操作。TRAMP、msgpack 和 tramp-rpc 由配置管理；Git checkout 使用官方 release server，不要求本机安装 Rust。
+
+```text
+C-x C-f
+/rpc:user@host:/path/to/project
+```
+
+首次连接会下载约 850 KB 的对应平台 server，并部署到远端的用户缓存目录。远端支持 Linux 和 macOS，不支持 Windows；Windows 可以作为本地 Emacs 客户端，但会关闭 OpenSSH 不支持的 ControlMaster，遇到兼容问题时使用普通 `/ssh:user@host:/path` 回退。
 
 ### 多光标编辑
 
@@ -219,7 +237,7 @@ C-c C-d            设置截止日期
 C-c C-x C-s        归档当前任务或项目
 ```
 
-日常文件位于 `~/org/`：`inbox.org` 是唯一的默认 Capture 入口；`work.org` 保存工作；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。
+日常文件位于 `~/org/`：`inbox.org` 是唯一的默认 Capture 入口；`work.org` 保存工作；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。配置不会自动创建或询问创建 `~/org/`；新机器应先手动建立该目录，目标文件可在首次 Capture 保存时创建。
 
 Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消，随后自动恢复 Capture 前的窗口布局；无需手动切换到目标 `.org` 文件。Capture 默认处于 Evil Insert 状态，按 `ESC q` 也可取消。
 
@@ -235,9 +253,9 @@ Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calend
 
 ### 跨平台本机设置
 
-配置支持 Linux、WSL、macOS 与原生 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包镜像、外部工具路径、Eat shell 和通知后端；`local.el` 不会提交到 Git。登录 shell 环境会先导入，再将 `my/extra-exec-paths` 中真实存在的目录加入 `PATH` 与 `exec-path`。
+配置支持 Linux、WSL、macOS 与原生 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包镜像、外部工具路径、Eat shell 和通知后端；`local.el` 不会提交到 Git。登录 shell 环境会先导入，再将 `my/extra-exec-paths` 中真实存在的目录加入 `PATH` 与 `exec-path`。Tree-sitter grammar 必须在每台机器上分别构建；不要同步 `tree-sitter/` 生成目录。
 
-Linux 默认使用 TUNA 镜像和 D-Bus 通知，macOS 默认使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Modeline 图标、Dired 图标和平滑滚动。
+所有系统默认使用 TUNA ELPA 镜像，可在 `local.el` 切换到官方源。Linux 使用 D-Bus 通知，macOS 使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Modeline 图标、Dired 图标和平滑滚动。GUI 剪贴板可直接使用；TTY、SSH 与 WSL 终端没有额外的系统剪贴板桥接，默认只写入 Emacs kill-ring。
 
 #### 临时窗口关闭
 
