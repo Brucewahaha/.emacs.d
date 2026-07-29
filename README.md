@@ -257,6 +257,8 @@ Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calend
 
 所有系统默认使用 TUNA ELPA 镜像，可在 `local.el` 切换到官方源。Linux 使用 D-Bus 通知，macOS 使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Modeline 图标、Dired 图标和平滑滚动。GUI 剪贴板可直接使用；TTY、SSH 与 WSL 终端没有额外的系统剪贴板桥接，默认只写入 Emacs kill-ring。
 
+原生 Windows 的 Emacs 可能调用到 MSYS 版 GPG，它会把 `C:/Users/...` 形式的 `--homedir` 错当成相对路径。配置在 Windows 上让 GPG 使用自己的默认 home，仍保留 GNU ELPA 签名验证，并在首次启动时安装和导入 `gnu-elpa-keyring-update`。更新配置后应完全退出并重新启动 Emacs，之前因签名失败的包会由 `use-package` 重新安装。更彻底的本机方案是安装原生 MinGW GPG，并确保它在 MSYS `/usr/bin/gpg.exe` 之前被找到；不要长期设置 `package-check-signature` 为 `nil`。
+
 #### 临时窗口关闭
 
 Evil Normal 状态下，`q` 会关闭当前的 Popper 弹窗或侧边临时窗口，例如 Help、编译输出、Messages、Eat、Eshell 与搜索结果；在普通编辑 Buffer 中，`q` 保持 Evil 的宏录制功能。`C-c \`` 仍用于显示或隐藏最近的 Popper，`M-\`` 用于循环切换。

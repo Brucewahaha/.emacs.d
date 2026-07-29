@@ -11,6 +11,14 @@
       (expand-file-name (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
                         user-emacs-directory))
 
+;; MSYS GPG treats drive-letter paths passed via --homedir as relative paths.
+;; Let GPG choose its native Windows home while retaining signature checks.
+(when my/windows-p
+  (setq package-gnupghome-dir nil)
+  ;; gnu-elpa-keyring-update keeps its timestamp here when GPG uses its
+  ;; default home.  The directory must exist before package autoloads run.
+  (make-directory (expand-file-name "gnupg" package-user-dir) t))
+
 
 ;;; Standard package repositories
 
