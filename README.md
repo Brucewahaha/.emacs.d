@@ -134,6 +134,17 @@ C-c b n / p        跳到下一个 / 上一个编译错误
 
 `M-s r` 会优先把选区或光标处符号作为初始搜索内容。编译输出由 Compilation Mode 解析，错误位置可以直接跳回源文件。
 
+#### 编译与错误跳转闭环
+
+项目构建使用 Emacs 内置 Project 和 Compilation Mode，形成“保存、编译、定位、修复、重编译”的循环：
+
+1. 在项目文件中按 `C-c b c`，自动保存所有已修改的文件，并在项目根目录选择或输入构建命令，例如 `make`、`cmake --build build` 或项目自己的测试命令。
+2. 构建输出显示在 Compilation Buffer 中，ANSI 颜色会被解析；输出持续滚动，已有编译进程会被新一次构建直接替换。
+3. 按 `C-c b n` / `C-c b p` 在编译器或测试工具报告的错误间前后跳转，也可以在 Compilation Buffer 的错误行按 `RET` 打开对应源码位置。
+4. 修改代码后按 `C-c b r`：配置再次保存文件，并重复当前项目上一次的构建命令；如果项目还没有 Compilation Buffer，则回退到 `C-c b c` 的首次编译流程。
+
+Compilation Buffer 由 Popper 管理，因此可以用 `q` 关闭，用 `C-c \`` 再次调出，而不会破坏主编辑窗口布局。编译错误跳转使用 `C-c b n/p`；Eglot/Flymake 的实时语义诊断是另一条独立链路，使用 `M-n` / `M-p`。前者适合完整构建和测试结果，后者适合编辑过程中的即时反馈。
+
 ### 文件管理
 
 使用 `C-x d` 打开 Dired；`C-x C-j` 会打开当前文件所属目录并定位到该文件。进入其他目录时会自动关闭当前 Dired Buffer，避免目录 Buffer 和 Tab 不断累积。Evil Normal 状态下：
@@ -224,29 +235,29 @@ Linux、WSL 和 macOS 使用 Eat，并优先选择 `local.el` 指定的 shell、
 ### Org 日程与项目
 
 ```text
-C-c c t            Capture 内容到统一 Inbox
-C-c c n            Capture 普通想法到 Inbox/Thoughts
-C-c c w / p        直接创建工作 / 个人任务
-C-c c W / P        直接创建工作 / 个人项目
-C-c c s            Capture 以后/也许事项到 Personal/Someday
-C-c c e            直接记录有明确时间的日程或约会
-C-c c j            记录当天自由日记
+C-c c i t / i n    Inbox：Task / Thought
+C-c c w t / w p    Work：Task / Project
+C-c c p l / p p    Personal：Life / Project
+C-c c p s          Personal：Someday
+C-c c n i/q/v      Notes：Idea / Quote / Insight
+C-c c c e          Calendar：Event
+C-c c j e          Journal：Entry
 C-c a d            今日 Agenda 与下一步行动
 C-c a i            查看 Inbox 中待分类任务
 C-c a u            查看未设置日期的工作和个人任务
 C-c a p            查看工作和个人任务的 NEXT、WAITING、TODO
-C-c C-w            将 Inbox 内容 Refile 到工作、个人或日程文件
+C-c C-w            将 Inbox 内容 Refile 到工作、个人、日程或 Notes
 C-c C-t            切换任务状态
 C-c C-s            设置计划开始日期
 C-c C-d            设置截止日期
 C-c C-x C-s        归档当前任务或项目
 ```
 
-日常文件位于本机 Org 根目录：Windows 默认为 `%USERPROFILE%/org/`，Linux 与 macOS 默认为 `~/org/`；可在 `local.el` 通过 `my/org-directory` 覆盖。`inbox.org` 包含 Tasks 与 Thoughts；`work.org` 保存工作任务和项目；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。目录或基础文件缺失时，配置会按上述结构自动创建。
+日常文件位于本机 Org 根目录：Windows 默认为 `%USERPROFILE%/org/`，Linux 与 macOS 默认为 `~/org/`；可在 `local.el` 通过 `my/org-directory` 覆盖。`inbox.org` 包含 Tasks 与 Thoughts；`work.org` 保存工作任务和项目；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda；`notes.org` 用 Ideas、Quotes 和 Insights 保存从 Inbox 整理出的长期内容。完成或取消的内容归档到 `org/archive/` 中各源文件对应的独立归档文件。Org 根目录、归档目录或基础文件缺失时，配置会按上述结构自动创建。
 
 Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消，随后自动恢复 Capture 前的窗口布局；无需手动切换到目标 `.org` 文件。Capture 默认处于 Evil Insert 状态，按 `ESC q` 也可取消。
 
-`C-c c t` 只要求标题，创建时间自动记录；在 Capture Buffer 中可按需用 `C-c C-q` 添加标签、`C-c C-t` 修改状态、`C-c C-s` 设置计划时间、`C-c C-d` 设置截止时间，再补充说明。`C-c c n` 保存不带 TODO 状态的想法，`C-c c s` 保存以后/也许任务。`C-c c w/p` 与 `C-c c W/P` 用于已明确归属的任务或项目。项目不强制要求多个子任务。`C-c c e` 直接记录名称、开始时间和备注。`C-c c j` 在当天日期下创建自由记录。
+`C-c c` 使用 Org Capture 原生的两级菜单：先选择 Inbox、Work、Personal、Notes、Calendar 或 Journal，再选择该文件中的一级标题。Inbox/Task 依次询问标题、标签、计划日期和截止日期，后三项可以直接留空；正文前用普通方括号记录精确到秒的创建时间，不创建 Property Drawer。Inbox/Thought 以相同的简单时间格式保存不带 TODO 状态的临时想法，整理时可将其 Refile 到 `notes.org`。Notes 的三个选项会先询问标题，再分别把正文写入 Ideas、Quotes 或 Insights。Journal/Entry 不要求填写子标题，而是在当天日期标题下直接追加创建时间和正文；同一天可以连续追加多段记录。
 
 Agenda 读取 Inbox、工作、个人和日程四个文件；每日视图显示当天时间事项、可立即做的 NEXT，并在标题中显示 Inbox 待处理数量。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
 

@@ -2,9 +2,8 @@
 ;; 1. 基础界面清理
 (setq confirm-kill-emacs #'yes-or-no-p
       use-dialog-box nil)
-(require 'color)
 (defconst my/programming-font-families
-  '("0xProto Nerd Font Mono" "Cascadia Mono" "JetBrains Mono"
+  '("CaskaydiaMono Nerd Font Mono" "0xProto Nerd Font Mono" "Cascadia Mono" "JetBrains Mono"
     "Menlo" "Monaco" "Consolas" "Liberation Mono"
     "DejaVu Sans Mono" "monospace")
   "Preferred programming font families, ordered by preference.")
@@ -13,7 +12,7 @@
     "Noto Sans CJK SC" "WenQuanYi Zen Hei Mono" "SimSun" "sans-serif")
   "Preferred CJK font families, ordered by preference.")
 (defconst my/nerd-font-families
-  '("Symbols Nerd Font Mono" "0xProto Nerd Font Mono")
+  '("Symbols Nerd Font Mono" "CaskaydiaMono Nerd Font Mono" "0xProto Nerd Font Mono")
   "Font families that provide the Nerd Font private-use glyphs.")
 (defconst my/symbol-font-families
   '("Segoe UI Symbol" "Apple Symbols" "Noto Sans Symbols 2"
@@ -57,7 +56,8 @@
   (let ((index (1+ (seq-position buffers buffer))))
     (concat (when (eq buffer (current-buffer))
               (propertize "▌" 'face 'font-lock-keyword-face))
-            (format "%d %s" index (tab-line-tab-name-truncated-buffer buffer buffers)))))
+            (format "%d %s" index
+                    (tab-line-tab-name-truncated-buffer buffer buffers)))))
 (defun my/tab-line-switch-to-index (index)
   "跳转到当前 Window 标签栏中的第 INDEX 个 Buffer。"
   (interactive "p")
@@ -96,7 +96,7 @@
       tab-line-close-button-show t
       tab-line-tab-name-function #'my/tab-line-tab-name
       tab-line-tab-name-truncated-max 20
-      tab-line-separator ""
+      tab-line-separator " "
       tab-line-close-tab-function #'my/tab-line-close-tab
       switch-to-prev-buffer-skip #'my/switch-to-prev-buffer-skip)
 (defun my/set-tab-line-close-button (icon)
@@ -104,6 +104,7 @@
   (setq tab-line-close-button
         (propertize (concat " " icon)
                     'rear-nonsticky nil
+                    'face '(:height 0.85)
                     'keymap tab-line-tab-close-map
                     'mouse-face 'tab-line-close-highlight
                     'help-echo "关闭标签")))
@@ -129,33 +130,32 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   (my/setup-icons))
 (global-tab-line-mode 1)
 
-(defun my/darken-color (color amount)
-  "将十六进制 COLOR 按 AMOUNT 比例加深。"
-  (if (string-match-p "\\`#[[:xdigit:]]\\{6\\}\\'" color)
-      (format "#%02x%02x%02x"
-              (floor (* (string-to-number (substring color 1 3) 16) (- 1 amount)))
-              (floor (* (string-to-number (substring color 3 5) 16) (- 1 amount)))
-              (floor (* (string-to-number (substring color 5 7) 16) (- 1 amount))))
-    (color-darken-name color amount)))
 (defun my/tab-line-apply-theme-colors ()
-  "根据当前主题的编辑区背景设置标签栏颜色。"
+  "Use the current theme's semantic faces for tab-line states."
   (interactive)
-  (let ((editor-background (face-attribute 'default :background nil t)))
-    (when (and (stringp editor-background)
-               (not (member editor-background '("unspecified" "unspecified-bg"))))
-      (let ((tab-background (my/darken-color editor-background 0.38)))
-        (set-face-attribute 'tab-line nil :background tab-background :box nil)
-        (set-face-attribute 'tab-line-tab nil :background tab-background :box nil)
-        (set-face-attribute 'tab-line-tab-inactive nil
-                            :inherit 'mode-line-inactive
-                            :background tab-background
-                            :box nil)
-        (set-face-attribute 'tab-line-tab-current nil
-                            :inherit 'mode-line
-                            :background editor-background
-                            :weight 'normal
-                            :box nil
-                            :underline nil)))))
+  (set-face-attribute 'tab-line nil
+                      :inherit 'mode-line-inactive
+                      :box nil)
+  (set-face-attribute 'tab-line-tab nil
+                      :inherit 'tab-line
+                      :box nil)
+  (set-face-attribute 'tab-line-tab-inactive nil
+                      :inherit 'tab-line
+                      :weight 'normal
+                      :box nil)
+  (set-face-attribute 'tab-line-tab-current nil
+                      :inherit 'default
+                      :weight 'bold
+                      :box nil
+                      :underline nil)
+  (set-face-attribute 'tab-line-tab-modified nil
+                      :inherit 'warning)
+  (set-face-attribute 'tab-line-tab-special nil
+                      :inherit 'font-lock-comment-face
+                      :slant 'italic)
+  (set-face-attribute 'tab-line-close-highlight nil
+                      :inherit 'error
+                      :box nil))
 
 ;; 3. 插件：图标库与状态栏
 (use-package nerd-icons
@@ -231,7 +231,7 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
          (nerdf (cl-find-if (lambda (f) (member f (font-family-list))) nerdfl)))
     ;; A. 设置默认字体
     (when ef
-      (set-face-attribute 'default nil :family ef :height 100))
+      (set-face-attribute 'default nil :family ef :height 150))
     ;; B. 设置中文字体 (han 字符集)
      (when cf
        (set-fontset-font t 'han (font-spec :family cf))

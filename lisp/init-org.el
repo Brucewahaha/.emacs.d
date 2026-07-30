@@ -3,6 +3,7 @@
 (require 'cl-lib)
 (require 'appt)
 (require 'notifications nil t)
+(require 'subr-x)
 
 (defvar my/org-directory nil
   "Optional machine-local path to the synchronized Org directory.")
@@ -21,6 +22,9 @@
 (defconst my/org-personal-file (expand-file-name "personal.org" org-directory))
 (defconst my/org-calendar-file (expand-file-name "calendar.org" org-directory))
 (defconst my/org-journal-file (expand-file-name "journal.org" org-directory))
+(defconst my/org-notes-file (expand-file-name "notes.org" org-directory))
+(defconst my/org-archive-directory
+  (file-name-as-directory (expand-file-name "archive" org-directory)))
 (defconst my/org-action-files (list my/org-work-file my/org-personal-file))
 
 (defconst my/org-initial-files
@@ -28,12 +32,14 @@
     (,my/org-work-file . "#+TITLE: Work\n\n* Tasks\n\n* Projects\n")
     (,my/org-personal-file . "#+TITLE: Personal\n\n* Projects\n\n* Life\n\n* Someday\n")
     (,my/org-calendar-file . "#+TITLE: Calendar\n\n* Events\n")
-    (,my/org-journal-file . "#+TITLE: Journal\n"))
+    (,my/org-journal-file . "#+TITLE: Journal\n")
+    (,my/org-notes-file . "#+TITLE: Notes\n\n* Ideas\n\n* Quotes\n\n* Insights\n"))
   "Org files and their initial contents.")
 
 (defun my/org-ensure-files ()
   "Create the configured Org directory and missing workflow files."
   (make-directory org-directory t)
+  (make-directory my/org-archive-directory t)
   (dolist (entry my/org-initial-files)
     (unless (file-exists-p (car entry))
       (with-temp-file (car entry)
@@ -53,11 +59,13 @@
       org-blank-before-new-entry '((heading . t) (plain-list-item . nil))
       org-refile-targets `((,my/org-work-file :maxlevel . 3)
                            (,my/org-personal-file :maxlevel . 3)
-                           (,my/org-calendar-file :maxlevel . 2))
+                           (,my/org-calendar-file :maxlevel . 2)
+                           (,my/org-notes-file :maxlevel . 2))
       org-refile-use-outline-path 'file
       org-outline-path-complete-in-steps nil
       org-refile-allow-creating-parent-nodes 'confirm
-      org-archive-location "%s_archive::"
+      org-archive-location
+      (concat my/org-archive-directory "%s_archive::")
       org-agenda-span 1
       org-agenda-start-on-weekday nil
       org-agenda-skip-scheduled-if-done t
@@ -71,81 +79,84 @@
 (advice-add 'org-refile-get-targets :filter-return
             #'my/org-refile-with-heading-only)
 
-(setq org-capture-templates
-      `(("t" "Inbox" entry (file+headline ,my/org-inbox-file "Tasks")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("n" "想法" entry (file+headline ,my/org-inbox-file "Thoughts")
-         "* %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("w" "工作任务" entry (file+headline ,my/org-work-file "Tasks")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("p" "个人任务" entry (file+headline ,my/org-personal-file "Life")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("W" "工作项目" entry (file+headline ,my/org-work-file "Projects")
-         "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("P" "个人项目" entry (file+headline ,my/org-personal-file "Projects")
-         "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("s" "以后/也许" entry (file+headline ,my/org-personal-file "Someday")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
-        ("e" "日程或约会" entry (file+headline ,my/org-calendar-file "Events")
-         "* %^{日程名称}\n  %^{开始时间}T\n\n  %?\n" :prepend t)
-        ("j" "日记" entry (file+datetree ,my/org-journal-file)
-         "* %?\n  %U\n" :empty-lines 1)))
+(defun my/org-created-at ()
+  "Return a plain inactive creation timestamp including seconds."
+  (format-time-string "[%Y-%m-%d %a %H:%M:%S]"))
 
-(defun my/org-capture-template (key)
-  "Capture with template KEY and focus its temporary editing buffer."
-  (org-capture nil key)
+(defun my/org-read-tags ()
+  "Prompt for optional tags and return them in Org headline syntax."
+  (let ((tags
+         (seq-remove
+          #'string-empty-p
+          (mapcar #'string-trim
+                  (completing-read-multiple
+                   "Tags (empty to skip): "
+                   (org-global-tags-completion-table) nil nil)))))
+    (if tags (concat " :" (string-join tags ":") ":") "")))
+
+(defun my/org-read-optional-date (prompt)
+  "Read an optional Org date using PROMPT and return an active timestamp."
+  (let ((input (string-trim
+                (read-string (format "%s (empty to skip): " prompt)))))
+    (unless (string-empty-p input)
+      (format "<%s>" (org-read-date nil nil input)))))
+
+(defun my/org-inbox-template ()
+  "Build an Inbox task template with optional tags and planning dates."
+  (let ((title (read-string "Title: "))
+        (tags (my/org-read-tags))
+        (scheduled (my/org-read-optional-date "Scheduled"))
+        (deadline (my/org-read-optional-date "Deadline")))
+    (concat
+     "* TODO " title tags "\n"
+     (string-join
+      (delq nil
+            (list (and scheduled (format "  SCHEDULED: %s" scheduled))
+                  (and deadline (format "  DEADLINE: %s" deadline))
+                  (format "  %s" (my/org-created-at))))
+      "\n")
+     "\n\n  %?\n")))
+
+(setq org-capture-templates
+      `(("i" "Inbox")
+        ("it" "Task" entry (file+headline ,my/org-inbox-file "Tasks")
+         (function my/org-inbox-template)
+         :prepend t)
+        ("in" "Thought" entry (file+headline ,my/org-inbox-file "Thoughts")
+         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+        ("w" "Work")
+        ("wt" "Task" entry (file+headline ,my/org-work-file "Tasks")
+         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("wp" "Project" entry (file+headline ,my/org-work-file "Projects")
+         "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("p" "Personal")
+        ("pl" "Life" entry (file+headline ,my/org-personal-file "Life")
+         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("pp" "Project" entry (file+headline ,my/org-personal-file "Projects")
+         "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("ps" "Someday" entry (file+headline ,my/org-personal-file "Someday")
+         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("n" "Notes")
+        ("ni" "Idea" entry (file+headline ,my/org-notes-file "Ideas")
+         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+        ("nq" "Quote" entry (file+headline ,my/org-notes-file "Quotes")
+         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+        ("nv" "Insight" entry (file+headline ,my/org-notes-file "Insights")
+         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+        ("c" "Calendar")
+        ("ce" "Event" entry (file+headline ,my/org-calendar-file "Events")
+         "* %^{日程名称}\n  %^{开始时间}T\n\n  %?\n" :prepend t)
+        ("j" "Journal")
+        ("je" "Entry" plain (file+olp+datetree ,my/org-journal-file)
+         "%U\n%?\n" :empty-lines 1)))
+
+(defun my/org-capture ()
+  "Open the grouped Org Capture menu and focus its editing buffer."
+  (interactive)
+  (org-capture)
   (when-let* ((marker (org-capture-get :begin-marker))
               (buffer (marker-buffer marker)))
     (switch-to-buffer buffer)))
-
-(defun my/org-capture-task ()
-  "Capture a task in the inbox."
-  (interactive)
-  (my/org-capture-template "t"))
-
-(defun my/org-capture-work-task ()
-  "Capture a work task."
-  (interactive)
-  (my/org-capture-template "w"))
-
-(defun my/org-capture-personal-task ()
-  "Capture a personal task."
-  (interactive)
-  (my/org-capture-template "p"))
-
-(defun my/org-capture-work-project ()
-  "Capture a work project."
-  (interactive)
-  (my/org-capture-template "W"))
-
-(defun my/org-capture-personal-project ()
-  "Capture a personal project."
-  (interactive)
-  (my/org-capture-template "P"))
-
-(defun my/org-capture-journal ()
-  "Capture a journal entry."
-  (interactive)
-  (my/org-capture-template "j"))
-
-(defun my/org-capture-event ()
-  "Capture a calendar event."
-  (interactive)
-  (my/org-capture-template "e"))
-
-(defvar my/org-capture-map
-  (let ((map (make-sparse-keymap)))
-    (define-key map (kbd "t") #'my/org-capture-task)
-    (define-key map (kbd "n") (lambda () (interactive) (my/org-capture-template "n")))
-    (define-key map (kbd "w") #'my/org-capture-work-task)
-    (define-key map (kbd "p") #'my/org-capture-personal-task)
-    (define-key map (kbd "W") #'my/org-capture-work-project)
-    (define-key map (kbd "P") #'my/org-capture-personal-project)
-    (define-key map (kbd "s") (lambda () (interactive) (my/org-capture-template "s")))
-    (define-key map (kbd "e") #'my/org-capture-event)
-    (define-key map (kbd "j") #'my/org-capture-journal)
-    map)
-  "Prefix map for direct Org capture templates.")
 
 (defun my/org-inbox-count ()
   "Return the number of unfinished entries in the Inbox."
@@ -269,7 +280,7 @@
 
 (global-set-key (kbd "C-c l") #'org-store-link)
 (global-set-key (kbd "C-c a") #'org-agenda)
-(global-set-key (kbd "C-c c") my/org-capture-map)
+(global-set-key (kbd "C-c c") #'my/org-capture)
 
 (provide 'init-org)
 ;;; init-org.el ends here

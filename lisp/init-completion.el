@@ -43,15 +43,15 @@
   (corfu-preselect 'first)
   (corfu-preview-current nil))
 
-(setq completion-at-point-functions
-      (delq 'ispell-completion-at-point completion-at-point-functions))
+(remove-hook 'completion-at-point-functions #'ispell-completion-at-point)
 
 (use-package cape
   :ensure t
   :init
-  (add-to-list 'completion-at-point-functions #'cape-file)
-  (add-to-list 'completion-at-point-functions #'cape-dabbrev)
-  (add-to-list 'completion-at-point-functions #'cape-keyword))
+  ;; `completion-at-point-functions' may become buffer-local.  Updating its
+  ;; default hook ensures buffers created after startup inherit Cape.
+  (dolist (function '(cape-file cape-dabbrev cape-keyword))
+    (add-hook 'completion-at-point-functions function)))
 
 (use-package yasnippet
   :ensure t
