@@ -27,8 +27,9 @@
       (or my/package-archives-override
           '(("gnu"    . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
             ("nongnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/nongnu/")
-            ("melpa"  . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/"))))
-;; 2. 只保留一个 MELPA 源，避免相同包名被后加入的源覆盖。
+            ;; MELPA snapshots change frequently.  Using its canonical archive
+            ;; avoids mirror indexes referring to files not yet synchronized.
+            ("melpa"  . "https://melpa.org/packages/"))))
 (setq package-archive-priorities '(("melpa" . 10)
                                    ("gnu" . 0)
                                    ("nongnu" . 0)))
@@ -65,6 +66,28 @@ re-downloaded in order to locate PACKAGE."
             (package-refresh-contents)
             (require-package package min-version t)))
         (package-installed-p package min-version))))
+
+(defun my/package-install-refresh-on-missing-file (original package &rest args)
+  "Refresh stale archive metadata and retry installing PACKAGE once.
+This handles mirrors whose archive index temporarily points at a package file
+which has not arrived yet, or has already been replaced."
+  (condition-case err
+      (apply original package args)
+    (file-missing
+     (message "Package file for %s is missing; refreshing archives and retrying" package)
+     (package-refresh-contents)
+     (apply original package args))
+    (error
+     (if (string-match-p "\\(?:404\\|Not found\\)"
+                         (error-message-string err))
+         (progn
+           (message "Package file for %s vanished; refreshing archives and retrying" package)
+           (package-refresh-contents)
+           (apply original package args))
+       (signal (car err) (cdr err))))))
+
+(advice-add 'package-install :around
+            #'my/package-install-refresh-on-missing-file)
 
 (defun maybe-require-package (package &optional min-version no-refresh)
   "Try to install PACKAGE, and return non-nil if successful.

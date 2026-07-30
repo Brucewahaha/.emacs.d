@@ -15,6 +15,14 @@
 (defconst my/nerd-font-families
   '("Symbols Nerd Font Mono" "0xProto Nerd Font Mono")
   "Font families that provide the Nerd Font private-use glyphs.")
+(defconst my/symbol-font-families
+  '("Segoe UI Symbol" "Apple Symbols" "Noto Sans Symbols 2"
+    "Noto Sans Symbols" "DejaVu Sans")
+  "Preferred fonts for standard Unicode symbols.")
+(defconst my/emoji-font-families
+  '("Segoe UI Emoji" "Apple Color Emoji" "Noto Color Emoji"
+    "Noto Emoji")
+  "Preferred fonts for Emoji characters.")
 (defun my/nerd-font-available-p ()
   "Return non-nil when this GUI frame can render Nerd Font icons."
   (and (display-graphic-p)
@@ -99,11 +107,26 @@
                     'keymap tab-line-tab-close-map
                     'mouse-face 'tab-line-close-highlight
                     'help-echo "关闭标签")))
-(my/set-tab-line-close-button "×")
-(with-eval-after-load 'nerd-icons
-  (when (my/nerd-font-available-p)
+;; Start with a font-independent fallback; graphical frames upgrade it below.
+(my/set-tab-line-close-button "x")
+(defun my/setup-icons ()
+  "Configure compact UI icons for the selected graphical frame.
+Windows keeps text fallbacks in the mode-line and tab-line because its font
+metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
+  (let* ((nerd-enabled (and (my/nerd-font-available-p)
+                            (fboundp 'nerd-icons-mdicon)))
+         (compact-icons-enabled (and nerd-enabled (not my/windows-p))))
+    (setq doom-modeline-icon compact-icons-enabled
+          doom-modeline-major-mode-icon compact-icons-enabled
+          doom-modeline-check-icon compact-icons-enabled
+          doom-modeline-unicode-fallback nil)
     (my/set-tab-line-close-button
-     (nerd-icons-mdicon "nf-md-close_thick" :height 0.8))))
+     (if compact-icons-enabled
+         (nerd-icons-mdicon "nf-md-close_thick")
+       "x"))
+    (force-mode-line-update t)))
+(with-eval-after-load 'nerd-icons
+  (my/setup-icons))
 (global-tab-line-mode 1)
 
 (defun my/darken-color (color amount)
@@ -148,8 +171,7 @@
   :ensure t
   :init (doom-modeline-mode 1)
   :config
-  (setq doom-modeline-icon (my/nerd-font-available-p)
-        doom-modeline-major-mode-icon (my/nerd-font-available-p)))
+  (my/setup-icons))
 
 
 (defconst my/night-theme 'doom-wilmersdorf)
@@ -192,46 +214,53 @@
 ;; 4. 字体设置
 (defun my/setup-font ()
   (interactive)
-  (let* ((font-size 15)
-         (cjk-font-scale 0.9)
+  (let* ((cjk-font-scale 0.9)
           ;; 英文/基础字体
           (efl my/programming-font-families)
          ;; 中文字体
           (cfl my/cjk-font-families)
-         ;; 符号/图标字体
-          (sfl my/nerd-font-families)
+         ;; 标准符号、Emoji 与 Nerd Font PUA 使用不同字体。
+          (symfl my/symbol-font-families)
+          (emjfl my/emoji-font-families)
+          (nerdfl my/nerd-font-families)
          
          (ef (cl-find-if (lambda (f) (member f (font-family-list))) efl))
          (cf (cl-find-if (lambda (f) (member f (font-family-list))) cfl))
-         (sf (cl-find-if (lambda (f) (member f (font-family-list))) sfl)))
+         (symf (cl-find-if (lambda (f) (member f (font-family-list))) symfl))
+         (emjf (cl-find-if (lambda (f) (member f (font-family-list))) emjfl))
+         (nerdf (cl-find-if (lambda (f) (member f (font-family-list))) nerdfl)))
     ;; A. 设置默认字体
     (when ef
-      (set-face-attribute 'default nil :family ef :height 140))
+      (set-face-attribute 'default nil :family ef :height 100))
     ;; B. 设置中文字体 (han 字符集)
      (when cf
        (set-fontset-font t 'han (font-spec :family cf))
        (set-fontset-font t 'cjk-misc (font-spec :family cf))
        (setq face-font-rescale-alist `((,cf . ,cjk-font-scale))))
-    ;; C. 设置符号字体 (注意：Elisp 中十六进制必须用 #x 开头)
-    (when sf
-      ;; 基础符号
-      (set-fontset-font t 'symbol (font-spec :family sf))
-      ;; Nerd Fonts 常用图标范围 (PUA 区域)
-      (set-fontset-font t '(#xe000 . #xf8ff) (font-spec :family sf))
-      ;; 更多符号
-      (set-fontset-font t '(#x2100 . #x2bcf) (font-spec :family sf))
-      ;; Emoji 范围
-      (set-fontset-font t '(#x1f000 . #x1faf0) (font-spec :family sf)))
-    ))
+    ;; C. 标准 Unicode 符号。Org Modern 的星号、列表和复选框位于此处。
+    (when symf
+      (set-fontset-font t 'symbol (font-spec :family symf))
+      (set-fontset-font t '(#x2000 . #x2bff) (font-spec :family symf))
+      (when (facep 'org-modern-symbol)
+        (set-face-attribute 'org-modern-symbol nil :family symf)))
+    ;; D. Emoji 保留彩色/系统 Emoji 字体，不再交给 Nerd Font。
+    (when emjf
+      (set-fontset-font t '(#x1f000 . #x1faff) (font-spec :family emjf)))
+    ;; E. Nerd Font 仅负责私用区图标。
+    (when nerdf
+      (set-fontset-font t '(#xe000 . #xf8ff) (font-spec :family nerdf)))))
+
+(with-eval-after-load 'org-modern
+  ;; `org-modern-symbol' is defined lazily when the first Org buffer is opened.
+  (when (display-graphic-p)
+    (my/setup-font)))
 
 (defun my/setup-graphical-frame (&optional frame)
   "Configure fonts and icon state for graphical FRAME."
   (with-selected-frame (or frame (selected-frame))
     (when (display-graphic-p)
       (my/setup-font)
-      (setq doom-modeline-icon (my/nerd-font-available-p)
-            doom-modeline-major-mode-icon (my/nerd-font-available-p))
-      (force-mode-line-update t))))
+      (my/setup-icons))))
 
 (add-hook 'after-make-frame-functions #'my/setup-graphical-frame)
 (add-hook 'window-setup-hook #'my/setup-graphical-frame)

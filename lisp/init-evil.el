@@ -30,6 +30,27 @@
 
   :config
   (evil-mode 1)
+   ;; Keep single-buffer Vim quit commands from escalating to frame/Emacs exit.
+   (evil-define-command my/evil-write-and-delete-buffer (file &optional bang)
+     "Write FILE and delete the current buffer."
+     (interactive "<f><!>")
+     (evil-write nil nil nil file bang)
+     (evil-delete-buffer (current-buffer)))
+   (evil-define-command my/evil-save-modified-and-delete-buffer (file &optional bang)
+     "Write FILE when modified, then delete the current buffer."
+     (interactive "<f><!>")
+     (when (buffer-modified-p)
+       (evil-write nil nil nil file bang))
+     (evil-delete-buffer (current-buffer)))
+   (evil-ex-define-cmd "q[uit]" #'evil-delete-buffer)
+   (evil-ex-define-cmd "wq" #'my/evil-write-and-delete-buffer)
+   (evil-ex-define-cmd "x[it]" #'my/evil-save-modified-and-delete-buffer)
+   (evil-ex-define-cmd "exi[t]" #'my/evil-save-modified-and-delete-buffer)
+   (define-key evil-normal-state-map (kbd "Z Z")
+               #'my/evil-save-modified-and-delete-buffer)
+   (define-key evil-normal-state-map (kbd "Z Q") #'evil-delete-buffer)
+   (define-key evil-window-map (kbd "q") #'evil-delete-buffer)
+   (define-key evil-window-map (kbd "C-q") #'evil-delete-buffer)
    ;; 文件树快捷键，仅覆盖 Evil Normal 状态。
    (define-key evil-normal-state-map (kbd "C-e") #'my/treemacs-toggle-current-project)
 

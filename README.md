@@ -8,7 +8,7 @@
 - Linux、WSL 和 macOS 下建议安装 `zsh`；也可在 `local.el` 指定 Eat 使用的 shell
 - 按需安装语言服务器，例如 `clangd`、`basedpyright`、`gopls`、`rust-analyzer`
 - 使用高速远程开发需要本机安装 Git、OpenSSH 和 SCP，并能通过 SSH 登录 Linux 或 macOS 远端
-- 首次使用或缺包时确认 ELPA 镜像可访问；包与 grammar 齐全后正常启动不会联网
+- 首次使用或缺包时确认 GNU/NonGNU ELPA 镜像及官方 MELPA 可访问；包与 grammar 齐全后正常启动不会联网
 
 ## 配置结构
 
@@ -101,9 +101,12 @@ C-x b              按名称搜索并切换已打开 Buffer
 [b / ]b            在当前 Window 的 Tab 中向左/向右切换
 Ctrl+Shift+1..9    跳转到当前 Window 的第 1 到第 9 个 Tab
 C-x k              关闭当前 Buffer
+:q / :q!           关闭当前 Buffer / 放弃修改后关闭
+:wq / :x / ZZ      保存并关闭当前 Buffer
+:qa / :wqa         保存提示后退出整个 Emacs
 ```
 
-每个 Window 维护自己的 Tab 列表。普通 Buffer 和 `*Messages*`、`*Warnings*`、`*EGLOT*` 等特殊 Buffer 分组隔离。
+每个 Window 维护自己的 Tab 列表。普通 Buffer 和 `*Messages*`、`*Warnings*`、`*EGLOT*` 等特殊 Buffer 分组隔离。单 Buffer 的 Evil 退出命令不会升级为关闭 Frame 或退出 Emacs，只有带 `all` 的命令执行全局退出。
 
 ### 窗口
 
@@ -222,8 +225,10 @@ Linux、WSL 和 macOS 使用 Eat，并优先选择 `local.el` 指定的 shell、
 
 ```text
 C-c c t            Capture 内容到统一 Inbox
+C-c c n            Capture 普通想法到 Inbox/Thoughts
 C-c c w / p        直接创建工作 / 个人任务
 C-c c W / P        直接创建工作 / 个人项目
+C-c c s            Capture 以后/也许事项到 Personal/Someday
 C-c c e            直接记录有明确时间的日程或约会
 C-c c j            记录当天自由日记
 C-c a d            今日 Agenda 与下一步行动
@@ -237,15 +242,15 @@ C-c C-d            设置截止日期
 C-c C-x C-s        归档当前任务或项目
 ```
 
-日常文件位于 `~/org/`：`inbox.org` 是唯一的默认 Capture 入口；`work.org` 保存工作；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。配置不会自动创建或询问创建 `~/org/`；新机器应先手动建立该目录，目标文件可在首次 Capture 保存时创建。
+日常文件位于本机 Org 根目录：Windows 默认为 `%USERPROFILE%/org/`，Linux 与 macOS 默认为 `~/org/`；可在 `local.el` 通过 `my/org-directory` 覆盖。`inbox.org` 包含 Tasks 与 Thoughts；`work.org` 保存工作任务和项目；`personal.org` 保存个人项目、生活事务和 Someday；`calendar.org` 保存带具体时间的事件；`journal.org` 保存自由日记且不进入 Agenda。完成或取消的内容归档到各文件对应的 `_archive.org` 文件。目录或基础文件缺失时，配置会按上述结构自动创建。
 
 Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消，随后自动恢复 Capture 前的窗口布局；无需手动切换到目标 `.org` 文件。Capture 默认处于 Evil Insert 状态，按 `ESC q` 也可取消。
 
-`C-c c t` 只要求标题，创建时间自动记录；在 Capture Buffer 中可按需用 `C-c C-q` 添加标签、`C-c C-t` 修改状态、`C-c C-s` 设置计划时间、`C-c C-d` 设置截止时间，再补充说明。`C-c c w/p` 与 `C-c c W/P` 用于已明确归属的任务或项目。项目不强制要求多个子任务。`C-c c e` 直接记录名称、开始时间和备注。`C-c c j` 在当天日期下创建自由记录。
+`C-c c t` 只要求标题，创建时间自动记录；在 Capture Buffer 中可按需用 `C-c C-q` 添加标签、`C-c C-t` 修改状态、`C-c C-s` 设置计划时间、`C-c C-d` 设置截止时间，再补充说明。`C-c c n` 保存不带 TODO 状态的想法，`C-c c s` 保存以后/也许任务。`C-c c w/p` 与 `C-c c W/P` 用于已明确归属的任务或项目。项目不强制要求多个子任务。`C-c c e` 直接记录名称、开始时间和备注。`C-c c j` 在当天日期下创建自由记录。
 
-Agenda 读取 Inbox、工作、个人和日程四个文件；每日视图显示当天时间事项、可立即做的 NEXT，并在标题中显示 Inbox 待处理数量。日程会在 30 分钟前开始显示桌面提醒，之后每 10 分钟重复提醒；桌面需要可用的通知服务。
+Agenda 读取 Inbox、工作、个人和日程四个文件；每日视图显示当天时间事项、可立即做的 NEXT，并在标题中显示 Inbox 待处理数量。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
 
-Android 可使用 Orgzly Revived，将其 WebDAV 仓库指向与 `~/org/` 同步的远程目录。避免在手机与桌面同时编辑同一文件。
+Android 可使用 Orgzly Revived、iOS 可使用 beorg，将其 WebDAV 仓库指向同一个远程 Org 目录。桌面端应使用服务商或 Nextcloud 同步客户端把该目录同步为本地 Org 根目录，不建议让 Agenda 和 Capture 直接操作远程 `/davs:` 路径。Windows 对同步文件每 2 秒轮询；未修改的 Org Buffer 自动重载后会刷新 Agenda 与提醒。避免在手机与桌面同时编辑同一文件，并在 WebDAV 服务端启用版本或回收站。
 
 Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calendar` 后双击任意日期可打开该日期的 Agenda。习惯任务可放在 `calendar.org` 的 `Habits` 标题下，或放在 `personal.org`；前者适合把所有周期性时间项集中查看，后者适合把习惯与个人项目放在一起。
 
@@ -253,9 +258,9 @@ Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calend
 
 ### 跨平台本机设置
 
-配置支持 Linux、WSL、macOS 与原生 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包镜像、外部工具路径、Eat shell 和通知后端；`local.el` 不会提交到 Git。登录 shell 环境会先导入，再将 `my/extra-exec-paths` 中真实存在的目录加入 `PATH` 与 `exec-path`。Tree-sitter grammar 必须在每台机器上分别构建；不要同步 `tree-sitter/` 生成目录。
+配置支持 Linux、WSL、macOS 与原生 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包源、Org 同步目录、外部工具路径、Eat shell 和通知后端；`local.el` 不会提交到 Git。登录 shell 环境会先导入，再将 `my/extra-exec-paths` 中真实存在的目录加入 `PATH` 与 `exec-path`。Tree-sitter grammar 必须在每台机器上分别构建；不要同步 `tree-sitter/` 生成目录。
 
-所有系统默认使用 TUNA ELPA 镜像，可在 `local.el` 切换到官方源。Linux 使用 D-Bus 通知，macOS 使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Modeline 图标、Dired 图标和平滑滚动。GUI 剪贴板可直接使用；TTY、SSH 与 WSL 终端没有额外的系统剪贴板桥接，默认只写入 Emacs kill-ring。
+GNU 与 NonGNU ELPA 默认使用 TUNA 镜像，更新频繁的 MELPA 使用官方源；下载地址失效时会刷新 archive 后重试，也可在 `local.el` 整体覆盖。Linux 使用 D-Bus 通知，macOS 使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Dired 图标和平滑滚动。标准 Unicode 符号、Emoji 与 Nerd Font PUA 使用独立字体映射；Windows 的 Modeline 和 Tab Line 使用稳定的文本标记，Linux/macOS 在字体可用时显示 Nerd Font 图标。GUI 剪贴板可直接使用；TTY、SSH 与 WSL 终端没有额外的系统剪贴板桥接，默认只写入 Emacs kill-ring。
 
 原生 Windows 的 Emacs 可能调用到 MSYS 版 GPG，它会把 `C:/Users/...` 形式的 `--homedir` 错当成相对路径。配置在 Windows 上让 GPG 使用自己的默认 home，仍保留 GNU ELPA 签名验证，并在首次启动时安装和导入 `gnu-elpa-keyring-update`。更新配置后应完全退出并重新启动 Emacs，之前因签名失败的包会由 `use-package` 重新安装。更彻底的本机方案是安装原生 MinGW GPG，并确保它在 MSYS `/usr/bin/gpg.exe` 之前被找到；不要长期设置 `package-check-signature` 为 `nil`。
 

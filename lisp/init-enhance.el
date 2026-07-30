@@ -22,7 +22,12 @@
   (recentf-mode 1)
   (save-place-mode 1)
   (global-auto-revert-mode 1)
-  (setq history-length 25))
+  (setq history-length 25
+        auto-revert-interval 2)
+  ;; File replacement by Windows sync clients is more reliable with polling
+  ;; than with file notification watches attached to the old file object.
+  (when my/windows-p
+    (setq auto-revert-use-notify nil)))
 
 (use-package dashboard
   :ensure t
@@ -95,7 +100,19 @@
 (use-package marginalia
   :ensure t
   :init
-  (marginalia-mode 1))
+  (marginalia-mode 1)
+  :config
+  ;; Marginalia's current MELPA build asks compat to emulate the Emacs 31
+  ;; three-argument API, but some compat builds expand that call incorrectly on
+  ;; Emacs 30.  The one-argument API still produces a suitable relative age.
+  (when (version< emacs-version "31")
+    (defun my/marginalia-time-relative-emacs-30 (time)
+      "Format TIME as a relative age using the Emacs 30 API."
+      (concat (seconds-to-string
+               (max 0 (float-time (time-since time))))
+              " ago"))
+    (advice-add 'marginalia--time-relative :override
+                #'my/marginalia-time-relative-emacs-30)))
 
 ;; --- 深度整合 Savehist ---
 (use-package savehist

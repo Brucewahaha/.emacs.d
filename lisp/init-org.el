@@ -4,7 +4,17 @@
 (require 'appt)
 (require 'notifications nil t)
 
-(setq org-directory (expand-file-name "~/org"))
+(defvar my/org-directory nil
+  "Optional machine-local path to the synchronized Org directory.")
+
+(setq org-directory
+      (file-name-as-directory
+       (expand-file-name
+        (or my/org-directory
+            (if my/windows-p
+                (expand-file-name
+                 "org" (or (getenv "USERPROFILE") (getenv "HOME") "~"))
+              "~/org")))))
 
 (defconst my/org-inbox-file (expand-file-name "inbox.org" org-directory))
 (defconst my/org-work-file (expand-file-name "work.org" org-directory))
@@ -12,6 +22,24 @@
 (defconst my/org-calendar-file (expand-file-name "calendar.org" org-directory))
 (defconst my/org-journal-file (expand-file-name "journal.org" org-directory))
 (defconst my/org-action-files (list my/org-work-file my/org-personal-file))
+
+(defconst my/org-initial-files
+  `((,my/org-inbox-file . "#+TITLE: Inbox\n\n* Tasks\n\n* Thoughts\n")
+    (,my/org-work-file . "#+TITLE: Work\n\n* Tasks\n\n* Projects\n")
+    (,my/org-personal-file . "#+TITLE: Personal\n\n* Projects\n\n* Life\n\n* Someday\n")
+    (,my/org-calendar-file . "#+TITLE: Calendar\n\n* Events\n")
+    (,my/org-journal-file . "#+TITLE: Journal\n"))
+  "Org files and their initial contents.")
+
+(defun my/org-ensure-files ()
+  "Create the configured Org directory and missing workflow files."
+  (make-directory org-directory t)
+  (dolist (entry my/org-initial-files)
+    (unless (file-exists-p (car entry))
+      (with-temp-file (car entry)
+        (insert (cdr entry))))))
+
+(my/org-ensure-files)
 
 (setq org-agenda-files (list my/org-inbox-file
                               my/org-work-file
@@ -46,6 +74,8 @@
 (setq org-capture-templates
       `(("t" "Inbox" entry (file+headline ,my/org-inbox-file "Tasks")
          "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("n" "想法" entry (file+headline ,my/org-inbox-file "Thoughts")
+         "* %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
         ("w" "工作任务" entry (file+headline ,my/org-work-file "Tasks")
          "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
         ("p" "个人任务" entry (file+headline ,my/org-personal-file "Life")
@@ -54,6 +84,8 @@
          "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
         ("P" "个人项目" entry (file+headline ,my/org-personal-file "Projects")
          "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+        ("s" "以后/也许" entry (file+headline ,my/org-personal-file "Someday")
+         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
         ("e" "日程或约会" entry (file+headline ,my/org-calendar-file "Events")
          "* %^{日程名称}\n  %^{开始时间}T\n\n  %?\n" :prepend t)
         ("j" "日记" entry (file+datetree ,my/org-journal-file)
@@ -104,10 +136,12 @@
 (defvar my/org-capture-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "t") #'my/org-capture-task)
+    (define-key map (kbd "n") (lambda () (interactive) (my/org-capture-template "n")))
     (define-key map (kbd "w") #'my/org-capture-work-task)
     (define-key map (kbd "p") #'my/org-capture-personal-task)
     (define-key map (kbd "W") #'my/org-capture-work-project)
     (define-key map (kbd "P") #'my/org-capture-personal-project)
+    (define-key map (kbd "s") (lambda () (interactive) (my/org-capture-template "s")))
     (define-key map (kbd "e") #'my/org-capture-event)
     (define-key map (kbd "j") #'my/org-capture-journal)
     map)
@@ -214,6 +248,15 @@
   "Refresh appointment reminders from the configured agenda files."
   (interactive)
   (org-agenda-to-appt t))
+
+(defun my/org-refresh-after-revert ()
+  "Refresh generated Org views after a synced Org file is reverted."
+  (when (derived-mode-p 'org-mode)
+    (when (get-buffer "*Org Agenda*")
+      (org-agenda-redo-all))
+    (my/org-refresh-appts)))
+
+(add-hook 'after-revert-hook #'my/org-refresh-after-revert)
 
 (setq appt-message-warning-time 30
       appt-display-interval 10

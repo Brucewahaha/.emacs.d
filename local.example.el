@@ -9,6 +9,10 @@
 ;;         ("nongnu" . "https://elpa.nongnu.org/nongnu/")
 ;;         ("melpa" . "https://melpa.org/packages/")))
 
+;; Override the local folder used for the synchronized Org files.  The default
+;; is %USERPROFILE%/org on Windows and ~/org on Linux/macOS.
+;; (setq my/org-directory "D:/Documents/org")
+
 ;; Add machine-specific tools such as LLVM, Git, Node, or a package manager.
 ;; (setq my/extra-exec-paths
 ;;       (cond
