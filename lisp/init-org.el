@@ -68,6 +68,20 @@
       (concat my/org-archive-directory "%s_archive::")
       org-agenda-span 1
       org-agenda-start-on-weekday nil
+      org-agenda-format-date "%Y-%m-%d %A"
+      org-agenda-time-leading-zero t
+      org-agenda-prefix-format
+      '((agenda . "  %?-5t %-10:c %s")
+        (todo . "  %-10:c")
+        (tags . "  %-10:c")
+        (search . "  %-10:c"))
+      org-agenda-time-grid
+      '((daily today require-timed remove-match)
+        (800 1000 1200 1400 1600 1800 2000)
+        "......" "----------------")
+      org-agenda-scheduled-leaders '("计划: " "已延期 %2d 天: ")
+      org-agenda-deadline-leaders
+      '("今天截止: " "剩余 %2d 天: " "逾期 %2d 天: ")
       org-agenda-skip-scheduled-if-done t
       org-agenda-skip-deadline-if-done t
       org-deadline-warning-days 7)
@@ -145,7 +159,7 @@
          "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
         ("c" "Calendar")
         ("ce" "Event" entry (file+headline ,my/org-calendar-file "Events")
-         "* %^{日程名称}\n  %^{开始时间}T\n\n  %?\n" :prepend t)
+         "* %^{日程名称}\n  %^{日期与时间（可输入时间段）}T\n\n  %?\n" :prepend t)
         ("j" "Journal")
         ("je" "Entry" plain (file+olp+datetree ,my/org-journal-file)
          "%U\n%?\n" :empty-lines 1)))
@@ -177,6 +191,20 @@
                        (format "今日日程（Inbox: %d 条待处理）" (my/org-inbox-count)))))
           (todo "NEXT" ((org-agenda-files ',my/org-action-files)
                         (org-agenda-overriding-header "下一步行动")))))
+        ("w" "本周任务与日程" agenda ""
+         ((org-agenda-span 'week)
+          (org-agenda-start-on-weekday 1)
+          (org-agenda-use-time-grid nil)
+          (org-deadline-warning-days 0)
+          (org-agenda-overriding-header "本周任务与日程")))
+        ("m" "本月任务与日程" agenda ""
+         ((org-agenda-span 'month)
+          (org-agenda-start-day (format-time-string "%Y-%m-01"))
+          (org-agenda-start-on-weekday nil)
+          (org-agenda-show-all-dates nil)
+          (org-agenda-use-time-grid nil)
+          (org-deadline-warning-days 0)
+          (org-agenda-overriding-header "本月任务与日程")))
         ("i" "收件箱"
          ((alltodo "" ((org-agenda-files ',(list my/org-inbox-file))
                        (org-agenda-overriding-header "待分类内容")))))
@@ -203,6 +231,9 @@
   (evil-set-initial-state 'org-agenda-mode 'normal)
   (add-hook 'org-agenda-mode-hook #'my/org-agenda-enter-evil-normal-state)
   (evil-define-key 'normal org-agenda-mode-map
+    (kbd "h") #'org-agenda-earlier
+    (kbd "l") #'org-agenda-later
+    (kbd ".") #'org-agenda-goto-today
     (kbd "g j") #'org-agenda-goto-date
     (kbd "g t") #'org-agenda-goto-today
     (kbd "t") #'org-agenda-todo

@@ -72,7 +72,7 @@ S-TAB              展开当前模板，或跳转到下一个模板字段
 
 ### 缩进与括号
 
-项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。缩进宽度确定后才启用 `indent-bars`：普通缩进线与背景融合，Tree-sitter 当前代码块中只高亮光标所在深度的一根连续竖线，颜色跟随当前主题。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
+项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。缩进宽度确定后才启用 `highlight-indent-guides`：普通缩进线以跟随主题的低对比度显示，光标所属的连续缩进段会单独高亮，不影响文件中其他同深度区段。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
 
 ### 候选项操作
 
@@ -257,9 +257,9 @@ C-c C-x C-s        归档当前任务或项目
 
 Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C-c` 保存，或按 `C-c C-k` 取消，随后自动恢复 Capture 前的窗口布局；无需手动切换到目标 `.org` 文件。Capture 默认处于 Evil Insert 状态，按 `ESC q` 也可取消。
 
-`C-c c` 使用 Org Capture 原生的两级菜单：先选择 Inbox、Work、Personal、Notes、Calendar 或 Journal，再选择该文件中的一级标题。Inbox/Task 依次询问标题、标签、计划日期和截止日期，后三项可以直接留空；正文前用普通方括号记录精确到秒的创建时间，不创建 Property Drawer。Inbox/Thought 以相同的简单时间格式保存不带 TODO 状态的临时想法，整理时可将其 Refile 到 `notes.org`。Notes 的三个选项会先询问标题，再分别把正文写入 Ideas、Quotes 或 Insights。Journal/Entry 不要求填写子标题，而是在当天日期标题下直接追加创建时间和正文；同一天可以连续追加多段记录。
+`C-c c` 使用 Org Capture 原生的两级菜单：先选择 Inbox、Work、Personal、Notes、Calendar 或 Journal，再选择该文件中的一级标题。Inbox/Task 依次询问标题、标签、计划日期和截止日期，后三项可以直接留空；正文前用普通方括号记录精确到秒的创建时间，不创建 Property Drawer。Inbox/Thought 以相同的简单时间格式保存不带 TODO 状态的临时想法，整理时可将其 Refile 到 `notes.org`。Notes 的三个选项会先询问标题，再分别把正文写入 Ideas、Quotes 或 Insights。Calendar/Event 接受单个时间或 `15:00-16:00` 形式的时间段；周期事件应使用带 `+1w` 等 repeater 的普通活动时间戳。Journal/Entry 不要求填写子标题，而是在当天日期标题下直接追加创建时间和正文；同一天可以连续追加多段记录。
 
-Agenda 读取 Inbox、工作、个人和日程四个文件；每日视图显示当天时间事项、可立即做的 NEXT，并在标题中显示 Inbox 待处理数量。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
+Agenda 读取 Inbox、工作、个人和日程四个文件。`C-c a d` 的每日视图使用数字日期，并按时间、来源和标题显示当天事项、未来 7 天内截止的任务和可立即做的 NEXT，同时在标题中显示 Inbox 待处理数量；`C-c a w` 显示周一至周日的本周任务与日程；`C-c a m` 从当月 1 日开始显示本月任务与日程，并隐藏没有内容的日期。周/月视图只在实际截止日显示 Deadline，避免重复一周的提前预警。Agenda Normal 状态下，`h`/`l` 查看前一个/后一个对应时间跨度，`.` 或 `g t` 返回当前跨度，`g j` 直接选择日期。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
 
 Android 可使用 Orgzly Revived、iOS 可使用 beorg，将其 WebDAV 仓库指向同一个远程 Org 目录。桌面端应使用服务商或 Nextcloud 同步客户端把该目录同步为本地 Org 根目录，不建议让 Agenda 和 Capture 直接操作远程 `/davs:` 路径。Windows 对同步文件每 2 秒轮询；未修改的 Org Buffer 自动重载后会刷新 Agenda 与提醒。避免在手机与桌面同时编辑同一文件，并在 WebDAV 服务端启用版本或回收站。
 
@@ -271,7 +271,7 @@ Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calend
 
 配置支持 Linux、WSL、macOS 与原生 Windows。复制 `local.example.el` 为 `local.el` 可覆盖本机包源、Org 同步目录、外部工具路径、Eat shell 和通知后端；`local.el` 不会提交到 Git。登录 shell 环境会先导入，再将 `my/extra-exec-paths` 中真实存在的目录加入 `PATH` 与 `exec-path`。Tree-sitter grammar 必须在每台机器上分别构建；不要同步 `tree-sitter/` 生成目录。
 
-GNU 与 NonGNU ELPA 默认使用 TUNA 镜像，更新频繁的 MELPA 使用官方源；下载地址失效时会刷新 archive 后重试，也可在 `local.el` 整体覆盖。Linux 使用 D-Bus 通知，macOS 使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Dired 图标和平滑滚动。标准 Unicode 符号、Emoji 与 Nerd Font PUA 使用独立字体映射；Windows 的 Modeline 和 Tab Line 使用稳定的文本标记，Linux/macOS 在字体可用时显示 Nerd Font 图标。GUI 剪贴板可直接使用；TTY、SSH 与 WSL 终端没有额外的系统剪贴板桥接，默认只写入 Emacs kill-ring。
+GNU 与 NonGNU ELPA 默认使用 TUNA 镜像，更新频繁的 MELPA 使用官方源；下载地址失效时会刷新 archive 后重试，也可在 `local.el` 整体覆盖。Linux 使用 D-Bus 通知，macOS 使用 `osascript` 通知，Windows 默认回退到 Emacs 消息提示，可在 `local.el` 配置 Toast。Linux、WSL 与 macOS 使用 Eat，原生 Windows 使用 Eshell。daemon 后创建 GUI Frame 时会重新初始化字体、Dired 图标和平滑滚动。`my/buffer-font-height` 统一控制所有主窗口 Buffer 的文字字号；`my/ui-font-height` 独立控制 Modeline、Tab Line、Header Line、Tooltip 和命令输入区域。标准 Unicode 符号、Emoji 与 Nerd Font PUA 使用独立字体映射；Windows 的 Modeline 和 Tab Line 使用稳定的文本标记，Linux/macOS 在字体可用时显示 Nerd Font 图标。GUI 剪贴板可直接使用；TTY、SSH 与 WSL 终端没有额外的系统剪贴板桥接，默认只写入 Emacs kill-ring。
 
 原生 Windows 的 Emacs 可能调用到 MSYS 版 GPG，它会把 `C:/Users/...` 形式的 `--homedir` 错当成相对路径。配置在 Windows 上让 GPG 使用自己的默认 home，仍保留 GNU ELPA 签名验证，并在首次启动时安装和导入 `gnu-elpa-keyring-update`。更新配置后应完全退出并重新启动 Emacs，之前因签名失败的包会由 `use-package` 重新安装。更彻底的本机方案是安装原生 MinGW GPG，并确保它在 MSYS `/usr/bin/gpg.exe` 之前被找到；不要长期设置 `package-check-signature` 为 `nil`。
 

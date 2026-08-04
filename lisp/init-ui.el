@@ -22,6 +22,14 @@
   '("Segoe UI Emoji" "Apple Color Emoji" "Noto Color Emoji"
     "Noto Emoji")
   "Preferred fonts for Emoji characters.")
+(defcustom my/ui-font-height 130
+  "UI font height in 1/10 point."
+  :type 'integer
+  :group 'faces)
+(defcustom my/buffer-font-height 140
+  "Main Buffer text height in 1/10 point."
+  :type 'integer
+  :group 'faces)
 (defun my/nerd-font-available-p ()
   "Return non-nil when this GUI frame can render Nerd Font icons."
   (and (display-graphic-p)
@@ -96,7 +104,7 @@
       tab-line-close-button-show t
       tab-line-tab-name-function #'my/tab-line-tab-name
       tab-line-tab-name-truncated-max 20
-      tab-line-separator " "
+      tab-line-separator (propertize " " 'display '(space :width 0.5))
       tab-line-close-tab-function #'my/tab-line-close-tab
       switch-to-prev-buffer-skip #'my/switch-to-prev-buffer-skip)
 (defun my/set-tab-line-close-button (icon)
@@ -157,6 +165,22 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
                       :inherit 'error
                       :box nil))
 
+(defun my/apply-ui-font-size ()
+  "Apply `my/ui-font-height' to interface text faces."
+  (dolist (face '(mode-line mode-line-active mode-line-inactive
+                  header-line header-line-highlight
+                  tab-line tab-line-tab tab-line-tab-current
+                  tab-line-tab-inactive tooltip))
+    (when (facep face)
+      (set-face-attribute face nil :height my/ui-font-height))))
+
+(defun my/setup-minibuffer-font-size ()
+  "Use the UI font size for minibuffer input and completion text."
+  (setq-local buffer-face-mode-face `(:height ,my/ui-font-height))
+  (buffer-face-mode 1))
+
+(add-hook 'minibuffer-setup-hook #'my/setup-minibuffer-font-size)
+
 ;; 3. 插件：图标库与状态栏
 (use-package nerd-icons
   :ensure t)
@@ -182,7 +206,10 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   (dolist (enabled-theme (copy-sequence custom-enabled-themes))
     (disable-theme enabled-theme))
   (load-theme theme t)
-  (my/tab-line-apply-theme-colors))
+  (when (fboundp 'my/setup-font)
+    (my/setup-font))
+  (my/tab-line-apply-theme-colors)
+  (my/apply-ui-font-size))
 
 (defun my/toggle-theme ()
   "Switch between the configured night and light themes."
@@ -214,6 +241,7 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
 ;; 4. 字体设置
 (defun my/setup-font ()
   (interactive)
+  (set-face-attribute 'default nil :height my/buffer-font-height)
   (let* ((cjk-font-scale 0.9)
           ;; 英文/基础字体
           (efl my/programming-font-families)
@@ -231,7 +259,7 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
          (nerdf (cl-find-if (lambda (f) (member f (font-family-list))) nerdfl)))
     ;; A. 设置默认字体
     (when ef
-      (set-face-attribute 'default nil :family ef :height 150))
+      (set-face-attribute 'default nil :family ef))
     ;; B. 设置中文字体 (han 字符集)
      (when cf
        (set-fontset-font t 'han (font-spec :family cf))
@@ -260,6 +288,7 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   (with-selected-frame (or frame (selected-frame))
     (when (display-graphic-p)
       (my/setup-font)
+      (my/apply-ui-font-size)
       (my/setup-icons))))
 
 (add-hook 'after-make-frame-functions #'my/setup-graphical-frame)
