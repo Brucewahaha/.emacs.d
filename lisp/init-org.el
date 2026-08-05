@@ -173,16 +173,27 @@
     (switch-to-buffer buffer)))
 
 (defun my/org-inbox-count ()
-  "Return the number of unfinished entries in the Inbox."
+  "Return the number of unprocessed task and thought entries in the Inbox."
   (let ((count 0))
     (with-current-buffer (find-file-noselect my/org-inbox-file)
       (org-with-wide-buffer
        (org-element-map (org-element-parse-buffer) 'headline
          (lambda (headline)
-           (when (member (org-element-property :todo-keyword headline)
-                         org-not-done-keywords)
+           (when (and (= (org-element-property :level headline) 2)
+                      (not (member (org-element-property :todo-keyword headline)
+                                   org-done-keywords)))
              (cl-incf count))))))
     count))
+
+(defun my/org-agenda-skip-completed-entry ()
+  "Skip the current Agenda entry when its TODO state is completed."
+  (when (member (org-get-todo-state) org-done-keywords)
+    (org-end-of-subtree t)))
+
+(defun my/org-agenda-skip-unless-under-heading (heading)
+  "Skip the current Agenda entry unless it is below HEADING."
+  (unless (member heading (org-get-outline-path))
+    (org-end-of-subtree t)))
 
 (setq org-agenda-custom-commands
       `(("d" "今日日程与下一步"
@@ -197,7 +208,7 @@
           (org-agenda-use-time-grid nil)
           (org-deadline-warning-days 0)
           (org-agenda-overriding-header "本周任务与日程")))
-        ("m" "本月任务与日程" agenda ""
+        ("o" "本月任务与日程" agenda ""
          ((org-agenda-span 'month)
           (org-agenda-start-day (format-time-string "%Y-%m-01"))
           (org-agenda-start-on-weekday nil)
@@ -206,22 +217,23 @@
           (org-deadline-warning-days 0)
           (org-agenda-overriding-header "本月任务与日程")))
         ("i" "收件箱"
-         ((alltodo "" ((org-agenda-files ',(list my/org-inbox-file))
-                       (org-agenda-overriding-header "待分类内容")))))
-        ("u" "未排期项目任务"
-         ((todo "TODO" ((org-agenda-files ',my/org-action-files)
-                        (org-agenda-skip-function '(org-agenda-skip-entry-if 'scheduled 'deadline))
-                        (org-agenda-overriding-header "待拆分或待安排")))
-          (todo "NEXT" ((org-agenda-files ',my/org-action-files)
-                        (org-agenda-skip-function '(org-agenda-skip-entry-if 'scheduled 'deadline))
-                        (org-agenda-overriding-header "可立即执行")))))
-        ("p" "工作与个人回顾"
+         ((tags "LEVEL=2"
+                ((org-agenda-files ',(list my/org-inbox-file))
+                 (org-agenda-skip-function #'my/org-agenda-skip-completed-entry)
+                 (org-agenda-overriding-header "待分类任务与想法")))))
+        ("f" "未来计划"
+         ((search "."
+                  ((org-agenda-files ',(list my/org-notes-file))
+                   (org-agenda-skip-function
+                    '(my/org-agenda-skip-unless-under-heading "Ideas"))
+                   (org-agenda-overriding-header "未来计划")))))
+        ("p" "工作与个人任务回顾"
          ((todo "NEXT" ((org-agenda-files ',my/org-action-files)
-                         (org-agenda-overriding-header "下一步行动")))
+                        (org-agenda-overriding-header "下一步行动")))
           (todo "WAITING" ((org-agenda-files ',my/org-action-files)
-                            (org-agenda-overriding-header "等待中")))
+                           (org-agenda-overriding-header "等待中")))
           (todo "TODO" ((org-agenda-files ',my/org-action-files)
-                         (org-agenda-overriding-header "待拆分或待安排")))))))
+                        (org-agenda-overriding-header "待拆分或待安排")))))))
 
 (defun my/org-agenda-enter-evil-normal-state ()
   "Enter Evil Normal state when an Org Agenda buffer is created."
@@ -275,6 +287,124 @@
                                   cal-china-x-general-holidays
                                   calendar-holidays)))
 
+(defun my/calfw-apply-theme-colors (&rest _)
+  "Apply semantic colors from the current theme to Calfw."
+  (when (featurep 'calfw)
+    (set-face-attribute 'calfw-title-face nil
+                        :inherit 'org-level-1
+                        :foreground 'unspecified
+                        :background 'unspecified
+                        :height 1.2)
+    (set-face-attribute 'calfw-header-face nil
+                        :inherit 'font-lock-keyword-face
+                        :foreground 'unspecified
+                        :background 'unspecified
+                        :weight 'bold)
+    (set-face-attribute 'calfw-sunday-face nil
+                        :inherit 'error
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-saturday-face nil
+                        :inherit 'font-lock-constant-face
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-holiday-face nil
+                        :inherit 'warning
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-grid-face nil
+                        :inherit 'shadow
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-default-content-face nil
+                        :inherit 'default
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-periods-face nil
+                        :inherit 'font-lock-keyword-face
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-today-title-face nil
+                        :inherit 'highlight
+                        :foreground 'unspecified
+                        :background 'unspecified
+                        :weight 'bold)
+    (set-face-attribute 'calfw-today-face nil
+                        :inherit 'highlight
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-toolbar-face nil
+                        :inherit 'mode-line-inactive
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-toolbar-button-off-face nil
+                        :inherit 'mode-line-inactive
+                        :foreground 'unspecified
+                        :background 'unspecified)
+    (set-face-attribute 'calfw-toolbar-button-on-face nil
+                        :inherit 'mode-line
+                        :foreground 'unspecified
+                        :background 'unspecified
+                        :weight 'bold)))
+
+(defun my/calfw-align-cell-pixels (render-function width &rest arguments)
+  "Pad a Calfw cell rendered by RENDER-FUNCTION to WIDTH in pixels."
+  (let ((text (apply render-function width arguments)))
+    (if (and (display-graphic-p)
+             (derived-mode-p 'calfw-calendar-mode))
+        (let ((missing (- (string-pixel-width (make-string width ?\s))
+                          (string-pixel-width text))))
+          (if (> missing 0)
+              (concat text
+                      (propertize " " 'display
+                                  `(space :width (,missing))))
+            text))
+      text)))
+
+(defun my/org-open-visual-calendar ()
+  "Open a theme-aware monthly calendar sourced from Org Agenda files."
+  (interactive)
+  (require 'calfw-org)
+  (org-agenda-prepare-buffers org-agenda-files)
+  (calfw-org-open-calendar
+   nil "Org"
+   (or (face-foreground 'font-lock-keyword-face nil t) "SteelBlue")
+   :view 'month))
+
+(use-package calfw
+  :ensure t
+  :defer t
+  :init
+  (setq calfw-org-overwrite-default-keybinding t)
+  :config
+  (dolist (function '(calfw--render-center calfw--render-left
+                      calfw--render-right calfw--render-add-right))
+    (advice-add function :around #'my/calfw-align-cell-pixels))
+  (my/calfw-apply-theme-colors)
+  (advice-add 'my/load-theme :after #'my/calfw-apply-theme-colors)
+  (with-eval-after-load 'evil
+    (when (fboundp 'evil-set-initial-state)
+      (evil-set-initial-state 'calfw-calendar-mode 'motion)
+      (evil-define-key 'motion calfw-calendar-mode-map
+        (kbd "h") #'calfw-navi-previous-day-command
+        (kbd "l") #'calfw-navi-next-day-command
+        (kbd "k") #'calfw-navi-previous-week-command
+        (kbd "j") #'calfw-navi-next-week-command
+        (kbd "g j") #'calfw-org-goto-date
+        (kbd "g t") #'calfw-navi-goto-today-command
+        (kbd "v d") #'calfw-change-view-day
+        (kbd "v w") #'calfw-change-view-week
+        (kbd "v m") #'calfw-change-view-month
+        (kbd "SPC") #'calfw-org-open-agenda-day
+        (kbd "RET") #'calfw-org-onclick
+        (kbd "r") #'calfw-refresh-calendar-buffer
+        (kbd "q") #'bury-buffer))))
+
+(use-package calfw-org
+  :ensure t
+  :after calfw
+  :defer t)
+
 (use-package org-modern
   :ensure t
   :hook ((org-mode . org-modern-mode)
@@ -312,6 +442,7 @@
 (global-set-key (kbd "C-c l") #'org-store-link)
 (global-set-key (kbd "C-c a") #'org-agenda)
 (global-set-key (kbd "C-c c") #'my/org-capture)
+(global-set-key (kbd "C-c C") #'my/org-open-visual-calendar)
 
 (provide 'init-org)
 ;;; init-org.el ends here

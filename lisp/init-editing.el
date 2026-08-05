@@ -82,6 +82,20 @@
   (highlight-indent-guides-delay 0.05)
   (highlight-indent-guides-auto-character-face-perc 60))
 
+(use-package move-text
+  :ensure t
+  :commands (move-text-up move-text-down)
+  :bind (:map prog-mode-map
+              ("M-<up>" . move-text-up)
+              ("M-<down>" . move-text-down))
+  :init
+  ;; Paredit keeps these keys in Insert state; code movement wins in the
+  ;; Normal and Visual states where line/region operations are expected.
+  (with-eval-after-load 'evil
+    (evil-define-key '(normal visual) prog-mode-map
+      (kbd "M-<up>") #'move-text-up
+      (kbd "M-<down>") #'move-text-down)))
+
 ;; 剪贴板与选区
 (setq select-enable-primary nil
       select-enable-clipboard t)

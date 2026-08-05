@@ -72,7 +72,7 @@ S-TAB              展开当前模板，或跳转到下一个模板字段
 
 ### 缩进与括号
 
-项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。缩进宽度确定后才启用 `highlight-indent-guides`：普通缩进线以跟随主题的低对比度显示，光标所属的连续缩进段会单独高亮，不影响文件中其他同深度区段。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
+项目存在 `.editorconfig` 时，其 `indent_size` 与 `indent_style` 优先；未明确指定的部分才由 dtrt-indent 根据现有文件推断。缩进宽度确定后才启用 `highlight-indent-guides`：普通缩进线以跟随主题的低对比度显示，光标所属的连续缩进段会单独高亮，不影响文件中其他同深度区段。编程 Buffer 使用 `M-↑`/`M-↓` 移动当前行或选区；Org 保留相同按键用于移动标题、列表项和表格行。普通语言使用 electric-pair 自动补全括号；Emacs Lisp、Common Lisp、Scheme、Racket、Clojure 和 Geiser REPL 使用 Paredit，并在对应 Buffer 中局部关闭 electric-pair。
 
 ### 候选项操作
 
@@ -259,7 +259,7 @@ Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C
 
 `C-c c` 使用 Org Capture 原生的两级菜单：先选择 Inbox、Work、Personal、Notes、Calendar 或 Journal，再选择该文件中的一级标题。Inbox/Task 依次询问标题、标签、计划日期和截止日期，后三项可以直接留空；正文前用普通方括号记录精确到秒的创建时间，不创建 Property Drawer。Inbox/Thought 以相同的简单时间格式保存不带 TODO 状态的临时想法，整理时可将其 Refile 到 `notes.org`。Notes 的三个选项会先询问标题，再分别把正文写入 Ideas、Quotes 或 Insights。Calendar/Event 接受单个时间或 `15:00-16:00` 形式的时间段；周期事件应使用带 `+1w` 等 repeater 的普通活动时间戳。Journal/Entry 不要求填写子标题，而是在当天日期标题下直接追加创建时间和正文；同一天可以连续追加多段记录。
 
-Agenda 读取 Inbox、工作、个人和日程四个文件。`C-c a d` 的每日视图使用数字日期，并按时间、来源和标题显示当天事项、未来 7 天内截止的任务和可立即做的 NEXT，同时在标题中显示 Inbox 待处理数量；`C-c a w` 显示周一至周日的本周任务与日程；`C-c a m` 从当月 1 日开始显示本月任务与日程，并隐藏没有内容的日期。周/月视图只在实际截止日显示 Deadline，避免重复一周的提前预警。Agenda Normal 状态下，`h`/`l` 查看前一个/后一个对应时间跨度，`.` 或 `g t` 返回当前跨度，`g j` 直接选择日期。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
+Agenda 读取 Inbox、工作、个人和日程四个文件。`C-c a d` 的每日视图使用数字日期，并按时间、来源和标题显示当天事项、未来 7 天内截止的任务和可立即做的 NEXT，同时在标题中显示 Inbox 待处理数量；`C-c a i` 同时显示 Inbox 中未完成的 Tasks 和普通 Thoughts；`C-c a p` 将 Work/Personal 的全部未完成任务按 NEXT、WAITING、TODO 分组回顾，包含有排期和截止日期的任务；`C-c a f` 以“未来计划”显示 Notes/Ideas 子树。`C-c a w` 显示周一至周日的本周任务与日程；`C-c a o` 从当月 1 日开始显示本月任务与日程，并隐藏没有内容的日期，`m/M` 保留给 Org 原生 tags/properties/TODO 匹配。`C-c C` 延迟加载 Calfw，以跟随当前主题的月历网格显示相同 Agenda 数据，并按实际像素补齐中英文混排的单元格；在其中使用 `v m`/`v w`/`v d` 切换月、周、日视图，`SPC` 打开选中日期的每日 Agenda，`RET` 跳转到选中事项。周/月列表视图只在实际截止日显示 Deadline，避免重复一周的提前预警。Agenda Normal 状态下，`h`/`l` 查看前一个/后一个对应时间跨度，`.` 或 `g t` 返回当前跨度，`g j` 直接选择日期。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
 
 Android 可使用 Orgzly Revived、iOS 可使用 beorg，将其 WebDAV 仓库指向同一个远程 Org 目录。桌面端应使用服务商或 Nextcloud 同步客户端把该目录同步为本地 Org 根目录，不建议让 Agenda 和 Capture 直接操作远程 `/davs:` 路径。Windows 对同步文件每 2 秒轮询；未修改的 Org Buffer 自动重载后会刷新 Agenda 与提醒。避免在手机与桌面同时编辑同一文件，并在 WebDAV 服务端启用版本或回收站。
 
