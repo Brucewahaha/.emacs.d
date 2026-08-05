@@ -374,11 +374,18 @@
   (calfw-org-open-calendar
    nil "Org"
    (or (face-foreground 'font-lock-keyword-face nil t) "SteelBlue")
-   :view 'month))
+   :view 'month)
+  (my/calfw-enter-evil-motion-state))
+
+(defun my/calfw-enter-evil-motion-state ()
+  "Ensure every Calfw calendar Buffer uses Evil Motion state."
+  (when (fboundp 'evil-motion-state)
+    (evil-motion-state)))
 
 (defun my/calfw-setup-evil ()
   "Configure Evil navigation after both Evil and Calfw are available."
   (evil-set-initial-state 'calfw-calendar-mode 'motion)
+  (add-hook 'calfw-calendar-mode-hook #'my/calfw-enter-evil-motion-state)
   (evil-define-key 'motion calfw-calendar-mode-map
     (kbd "h") #'calfw-navi-previous-day-command
     (kbd "l") #'calfw-navi-next-day-command
