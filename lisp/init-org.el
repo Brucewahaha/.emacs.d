@@ -239,7 +239,8 @@
   "Enter Evil Normal state when an Org Agenda buffer is created."
   (evil-normal-state))
 
-(with-eval-after-load 'org-agenda
+(defun my/org-agenda-setup-evil ()
+  "Configure Agenda navigation after both Evil and Org Agenda are available."
   (evil-set-initial-state 'org-agenda-mode 'normal)
   (add-hook 'org-agenda-mode-hook #'my/org-agenda-enter-evil-normal-state)
   (evil-define-key 'normal org-agenda-mode-map
@@ -255,6 +256,10 @@
     (kbd "RET") #'org-agenda-switch-to
     (kbd "TAB") #'org-agenda-goto
     (kbd "q") #'org-agenda-quit))
+
+(with-eval-after-load 'evil
+  (with-eval-after-load 'org-agenda
+    (my/org-agenda-setup-evil)))
 
 (with-eval-after-load 'org-capture
   (with-eval-after-load 'evil
@@ -371,6 +376,24 @@
    (or (face-foreground 'font-lock-keyword-face nil t) "SteelBlue")
    :view 'month))
 
+(defun my/calfw-setup-evil ()
+  "Configure Evil navigation after both Evil and Calfw are available."
+  (evil-set-initial-state 'calfw-calendar-mode 'motion)
+  (evil-define-key 'motion calfw-calendar-mode-map
+    (kbd "h") #'calfw-navi-previous-day-command
+    (kbd "l") #'calfw-navi-next-day-command
+    (kbd "k") #'calfw-navi-previous-week-command
+    (kbd "j") #'calfw-navi-next-week-command
+    (kbd "g j") #'calfw-org-goto-date
+    (kbd "g t") #'calfw-navi-goto-today-command
+    (kbd "v d") #'calfw-change-view-day
+    (kbd "v w") #'calfw-change-view-week
+    (kbd "v m") #'calfw-change-view-month
+    (kbd "SPC") #'calfw-org-open-agenda-day
+    (kbd "RET") #'calfw-org-onclick
+    (kbd "r") #'calfw-refresh-calendar-buffer
+    (kbd "q") #'bury-buffer))
+
 (use-package calfw
   :ensure t
   :defer t
@@ -381,29 +404,16 @@
                       calfw--render-right calfw--render-add-right))
     (advice-add function :around #'my/calfw-align-cell-pixels))
   (my/calfw-apply-theme-colors)
-  (advice-add 'my/load-theme :after #'my/calfw-apply-theme-colors)
-  (with-eval-after-load 'evil
-    (when (fboundp 'evil-set-initial-state)
-      (evil-set-initial-state 'calfw-calendar-mode 'motion)
-      (evil-define-key 'motion calfw-calendar-mode-map
-        (kbd "h") #'calfw-navi-previous-day-command
-        (kbd "l") #'calfw-navi-next-day-command
-        (kbd "k") #'calfw-navi-previous-week-command
-        (kbd "j") #'calfw-navi-next-week-command
-        (kbd "g j") #'calfw-org-goto-date
-        (kbd "g t") #'calfw-navi-goto-today-command
-        (kbd "v d") #'calfw-change-view-day
-        (kbd "v w") #'calfw-change-view-week
-        (kbd "v m") #'calfw-change-view-month
-        (kbd "SPC") #'calfw-org-open-agenda-day
-        (kbd "RET") #'calfw-org-onclick
-        (kbd "r") #'calfw-refresh-calendar-buffer
-        (kbd "q") #'bury-buffer))))
+  (advice-add 'my/load-theme :after #'my/calfw-apply-theme-colors))
 
 (use-package calfw-org
   :ensure t
   :after calfw
   :defer t)
+
+(with-eval-after-load 'evil
+  (with-eval-after-load 'calfw
+    (my/calfw-setup-evil)))
 
 (use-package org-modern
   :ensure t
