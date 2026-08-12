@@ -36,16 +36,40 @@
     (,my/org-notes-file . "#+TITLE: Notes\n\n* Ideas\n\n* Quotes\n\n* Insights\n"))
   "Org files and their initial contents.")
 
-(defun my/org-ensure-files ()
+(defun my/org-missing-files ()
+  "Return configured Org workflow files that do not exist."
+  (seq-filter (lambda (entry) (not (file-exists-p (car entry))))
+              my/org-initial-files))
+
+(defun my/org-initialize-files ()
   "Create the configured Org directory and missing workflow files."
+  (interactive)
   (make-directory org-directory t)
   (make-directory my/org-archive-directory t)
-  (dolist (entry my/org-initial-files)
-    (unless (file-exists-p (car entry))
-      (with-temp-file (car entry)
-        (insert (cdr entry))))))
+  (dolist (entry (my/org-missing-files))
+    (with-temp-file (car entry)
+      (insert (cdr entry)))))
 
-(my/org-ensure-files)
+(defun my/org-ensure-files-for-use (&rest _)
+  "Offer to initialize missing Org workflow files before use."
+  (let ((missing (my/org-missing-files))
+        (archive-missing (not (file-directory-p my/org-archive-directory))))
+    (when (or missing archive-missing)
+      (unless (yes-or-no-p
+               (format "Org 工作流缺少 %s，是否按默认结构初始化？ "
+                       (string-join
+                        (append
+                         (mapcar (lambda (entry)
+                                   (file-name-nondirectory (car entry)))
+                                 missing)
+                         (and archive-missing '("archive/")))
+                        ", ")))
+        (user-error "Org 工作流尚未初始化"))
+      (my/org-initialize-files)))
+  (my/org-start-appt-reminders))
+
+(advice-add 'org-agenda :before #'my/org-ensure-files-for-use)
+(advice-add 'org-capture :before #'my/org-ensure-files-for-use)
 
 (setq org-agenda-files (list my/org-inbox-file
                               my/org-work-file
@@ -271,7 +295,9 @@
   "Show the daily Agenda for the Calendar date clicked in EVENT."
   (interactive "e")
   (mouse-set-point event)
-  (org-agenda-list nil (calendar-cursor-to-date) 1))
+  (my/org-ensure-files-for-use)
+  (org-agenda-list
+   nil (calendar-absolute-from-gregorian (calendar-cursor-to-date)) 1))
 
 (use-package calendar
   :ensure nil
@@ -369,6 +395,7 @@
 (defun my/org-open-visual-calendar ()
   "Open a theme-aware monthly calendar sourced from Org Agenda files."
   (interactive)
+  (my/org-ensure-files-for-use)
   (require 'calfw-org)
   (org-agenda-prepare-buffers org-agenda-files)
   (calfw-org-open-calendar
@@ -436,13 +463,34 @@
 (defun my/org-refresh-appts ()
   "Refresh appointment reminders from the configured agenda files."
   (interactive)
-  (org-agenda-to-appt t))
+  (when (null (my/org-missing-files))
+    (org-agenda-to-appt t)))
+
+(defvar my/org-appt-refresh-timer nil
+  "Timer used to refresh appointments from Org Agenda files.")
+
+(defvar my/org-appt-reminders-starting nil
+  "Non-nil while Org appointment reminders are being initialized.")
+
+(defun my/org-start-appt-reminders (&rest _)
+  "Start Org appointment reminders after the first Org workflow use."
+  (unless (or my/org-appt-reminders-starting
+              (timerp my/org-appt-refresh-timer))
+    (let ((my/org-appt-reminders-starting t))
+      (appt-activate 1)
+      (my/org-refresh-appts)
+      (setq my/org-appt-refresh-timer
+            (run-at-time 600 600 #'my/org-refresh-appts)))))
+
+(add-hook 'org-mode-hook #'my/org-start-appt-reminders)
 
 (defun my/org-refresh-after-revert ()
   "Refresh generated Org views after a synced Org file is reverted."
   (when (derived-mode-p 'org-mode)
-    (when (get-buffer "*Org Agenda*")
-      (org-agenda-redo-all))
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (when (derived-mode-p 'org-agenda-mode)
+          (org-agenda-redo))))
     (my/org-refresh-appts)))
 
 (add-hook 'after-revert-hook #'my/org-refresh-after-revert)
@@ -452,9 +500,6 @@
       appt-display-mode-line t
       appt-display-diary nil
       appt-disp-window-function #'my/org-appt-display)
-(appt-activate 1)
-(add-hook 'after-init-hook #'my/org-refresh-appts)
-(run-at-time 300 600 #'my/org-refresh-appts)
 
 (global-set-key (kbd "C-c l") #'org-store-link)
 (global-set-key (kbd "C-c a") #'org-agenda)

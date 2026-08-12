@@ -35,8 +35,8 @@
 
 (use-package pyim
   :ensure t
-  :demand t
-  :config
+  :commands (pyim-convert-string-at-point pyim-activate)
+  :init
   ;; 1. 设置输入法激活快捷键 (C-\\)
   (setq default-input-method "pyim")
 
@@ -46,12 +46,6 @@
   ;; 3. 设置选词框显示方式 (在光标处弹出)
   (setq pyim-page-tooltip 'posframe) ; 如果你没装 posframe，可以改为 'popup 或 'minibuffer
 
-  ;; 4. 词库设置 (pyim 需要词库才能工作)
-  ;; 我们使用 pyim-basedict (基础词库)
-  (use-package pyim-basedict
-    :ensure t
-    :config (pyim-basedict-enable))
-
   ;; 5. 标点符号设置
   ;; 默认全角标点，你可以根据需求调整
   (setq-default pyim-punctuation-dict nil)
@@ -59,5 +53,11 @@
   :bind
   (("M-j" . pyim-convert-string-at-point) ; 转换光标前的拼音为中文
    ("C-\\" . toggle-input-method)))        ; 切换输入法
+
+(use-package pyim-basedict
+  :ensure t
+  :after pyim
+  :config
+  (pyim-basedict-enable))
 
 (provide 'init-tools)

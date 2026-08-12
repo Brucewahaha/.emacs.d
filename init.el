@@ -46,9 +46,6 @@
 ;; --- 模拟层 (最后加载) ---
 (require 'init-evil)
 
-;; --- sicp ---
-(require 'init-sicp)
-
 ;; 杂项
 (require 'sudo-edit nil t)
 (require 'htmlize nil t)

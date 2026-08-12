@@ -2,6 +2,7 @@
 ;;; Code:
 
 (require 'init-treesitter)
+(require 'init-sicp)
 
 ;; 基础编辑行为
 (electric-pair-mode t)

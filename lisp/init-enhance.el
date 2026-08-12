@@ -23,11 +23,16 @@
   (save-place-mode 1)
   (global-auto-revert-mode 1)
   (setq history-length 25
-        auto-revert-interval 2)
-  ;; File replacement by Windows sync clients is more reliable with polling
-  ;; than with file notification watches attached to the old file object.
-  (when my/windows-p
-    (setq auto-revert-use-notify nil)))
+        auto-revert-interval (if my/windows-p 5 2)))
+
+(defun my/use-polling-for-synced-org-file ()
+  "Use polling for Org files replaced by Windows sync clients."
+  (when (and my/windows-p
+             buffer-file-name
+             (file-in-directory-p buffer-file-name org-directory))
+    (setq-local auto-revert-use-notify nil)))
+
+(add-hook 'org-mode-hook #'my/use-polling-for-synced-org-file)
 
 (use-package dashboard
   :ensure t

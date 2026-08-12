@@ -261,7 +261,7 @@ Capture 会打开聚焦的 `CAPTURE-*` 临时 Buffer。输入完成后按 `C-c C
 
 Agenda 读取 Inbox、工作、个人和日程四个文件。`C-c a d` 的每日视图使用数字日期，并按时间、来源和标题显示当天事项、未来 7 天内截止的任务和可立即做的 NEXT，同时在标题中显示 Inbox 待处理数量；`C-c a i` 同时显示 Inbox 中未完成的 Tasks 和普通 Thoughts；`C-c a p` 将 Work/Personal 的全部未完成任务按 NEXT、WAITING、TODO 分组回顾，包含有排期和截止日期的任务；`C-c a f` 以“未来计划”显示 Notes/Ideas 子树。`C-c a w` 显示周一至周日的本周任务与日程；`C-c a o` 从当月 1 日开始显示本月任务与日程，并隐藏没有内容的日期，`m/M` 保留给 Org 原生 tags/properties/TODO 匹配。`C-c C` 延迟加载 Calfw，以跟随当前主题的月历网格显示相同 Agenda 数据，并按实际像素补齐中英文混排的单元格；在其中使用 `v m`/`v w`/`v d` 切换月、周、日视图，`SPC` 打开选中日期的每日 Agenda，`RET` 跳转到选中事项。周/月列表视图只在实际截止日显示 Deadline，避免重复一周的提前预警。Agenda Normal 状态下，`h`/`l` 查看前一个/后一个对应时间跨度，`.` 或 `g t` 返回当前跨度，`g j` 直接选择日期。日程会在 30 分钟前开始提醒，之后每 10 分钟重复；Linux/macOS 使用系统通知，Windows 默认显示 Emacs 内提醒，可通过 `local.el` 配置 Toast。提醒要求 Emacs 保持运行且时间戳包含具体时间。
 
-Android 可使用 Orgzly Revived、iOS 可使用 beorg，将其 WebDAV 仓库指向同一个远程 Org 目录。桌面端应使用服务商或 Nextcloud 同步客户端把该目录同步为本地 Org 根目录，不建议让 Agenda 和 Capture 直接操作远程 `/davs:` 路径。Windows 对同步文件每 2 秒轮询；未修改的 Org Buffer 自动重载后会刷新 Agenda 与提醒。避免在手机与桌面同时编辑同一文件，并在 WebDAV 服务端启用版本或回收站。
+Android 可使用 Orgzly Revived、iOS 可使用 beorg，将其 WebDAV 仓库指向同一个远程 Org 目录。桌面端应使用服务商或 Nextcloud 同步客户端把该目录同步为本地 Org 根目录，不建议让 Agenda 和 Capture 直接操作远程 `/davs:` 路径。Windows 仅对同步目录中的 Org 文件每 5 秒轮询；其他文件继续使用文件通知。未修改的 Org Buffer 自动重载后会刷新 Agenda 与提醒。避免在手机与桌面同时编辑同一文件，并在 WebDAV 服务端启用版本或回收站。
 
 Calendar 使用周一作为每周第一天，并显示中国节日。`M-x calendar` 后双击任意日期可打开该日期的 Agenda。习惯任务可放在 `calendar.org` 的 `Habits` 标题下，或放在 `personal.org`；前者适合把所有周期性时间项集中查看，后者适合把习惯与个人项目放在一起。
 
