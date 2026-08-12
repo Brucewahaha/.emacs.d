@@ -18,6 +18,7 @@
 
 ;; Add both site-lisp and its immediate subdirs to `load-path'
 (let ((site-lisp-dir (expand-file-name "site-lisp/" user-emacs-directory)))
+  (make-directory site-lisp-dir t)
   (push site-lisp-dir load-path)
   (sanityinc/add-subdirs-to-load-path site-lisp-dir))
 
