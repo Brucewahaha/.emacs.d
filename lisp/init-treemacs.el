@@ -6,9 +6,10 @@
   :defer t
   :config
   (treemacs-tag-follow-mode)
-  (with-eval-after-load 'treemacs
-    (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)
-    (define-key treemacs-mode-map [mouse-2] #'treemacs-rightclick-menu))
+  (define-key treemacs-mode-map (kbd "C-e")
+              #'my/treemacs-toggle-current-project)
+  (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)
+  (define-key treemacs-mode-map [mouse-2] #'treemacs-rightclick-menu)
   :bind (:map global-map
               ("M-0" . treemacs-select-window)
               ("C-x t 1" . treemacs-delete-other-windows)
@@ -33,14 +34,24 @@
             (window-list nil 'no-minibuf)))
 
 (defun my/treemacs-toggle-current-project ()
-  "打开当前项目的 Treemacs，或关闭可见文件树。"
+  "Move between the editor and Treemacs, opening it when necessary."
   (interactive)
   (require 'treemacs)
+  (if (derived-mode-p 'treemacs-mode)
+      (if-let ((window (get-mru-window nil nil t t)))
+          (select-window window)
+        (user-error "没有可切换的编辑窗口"))
+    (if-let ((window (my/treemacs-visible-window)))
+        (select-window window)
+      (my/treemacs-display-current-project))))
+
+(defun my/treemacs-close ()
+  "Close the visible Treemacs sidebar in the selected frame."
+  (interactive)
   (if-let ((window (my/treemacs-visible-window)))
-      (if (with-selected-window window (one-window-p t))
-          (with-selected-window window (treemacs-quit))
-        (delete-window window))
-    (my/treemacs-display-current-project)))
+      (with-selected-window window
+        (treemacs-quit))
+    (user-error "当前 Frame 没有可见的 Treemacs")))
 
 (defun my/treemacs-open-or-enter ()
   "进入当前目录为 Treemacs 根，或直接打开当前文件。"
@@ -54,27 +65,20 @@
       (_
        (treemacs-TAB-action)))))
 
-(with-eval-after-load 'projectile
-  (add-hook 'projectile-after-switch-project-hook
-            #'my/treemacs-display-current-project))
-
 (use-package treemacs-evil
   :ensure t
   :after (treemacs evil)
   :config
-  (evil-define-key 'treemacs treemacs-mode-map
-    "h" #'treemacs-root-up
-    "l" #'my/treemacs-open-or-enter
-    "H" #'treemacs-toggle-show-dotfiles
-    "a" #'treemacs-create-file
-    "r" #'treemacs-rename-file
-    "c" #'treemacs-copy-file
-    "d" #'treemacs-delete-file
-    "\\" #'treemacs-quit))
-
-(use-package treemacs-projectile
-  :ensure t
-  :after (treemacs projectile))
+  (define-key evil-treemacs-state-map (kbd "C-e")
+              #'my/treemacs-toggle-current-project)
+  (define-key evil-treemacs-state-map (kbd "h") #'treemacs-root-up)
+  (define-key evil-treemacs-state-map (kbd "l") #'my/treemacs-open-or-enter)
+  (define-key evil-treemacs-state-map (kbd "H") #'treemacs-toggle-show-dotfiles)
+  (define-key evil-treemacs-state-map (kbd "a") #'treemacs-create-file)
+  (define-key evil-treemacs-state-map (kbd "r") #'treemacs-rename-file)
+  (define-key evil-treemacs-state-map (kbd "c") #'treemacs-copy-file)
+  (define-key evil-treemacs-state-map (kbd "d") #'treemacs-delete-file)
+  (define-key evil-treemacs-state-map (kbd "\\") #'my/treemacs-close))
 
 (provide 'init-treemacs)
 ;;; init-treemacs.el ends here

@@ -10,7 +10,10 @@
 
 
 ;; 增强帮助
-(use-package which-key :ensure t :init (which-key-mode))
+(use-package which-key
+  :ensure nil
+  :init
+  (which-key-mode 1))
 (use-package helpful
   :ensure t
   :bind (("C-h f" . helpful-function)
@@ -18,20 +21,16 @@
          ("C-h k" . helpful-key)))
 
 ;; 滚动优化
-(defun my/enable-good-scroll-on-graphical-frame (frame)
-  "Enable Good Scroll after a graphical FRAME is available."
+(defun my/enable-pixel-scroll-on-graphical-frame (frame)
+  "Enable precise pixel scrolling after a graphical FRAME is available."
   (with-selected-frame frame
     (when (display-graphic-p)
-      (good-scroll-mode 1))))
+      (pixel-scroll-precision-mode 1))))
 
-(use-package good-scroll
-  :ensure t
-  :commands good-scroll-mode
-  :init
-  (add-hook 'after-make-frame-functions
-            #'my/enable-good-scroll-on-graphical-frame)
-  (when (display-graphic-p)
-    (good-scroll-mode 1)))
+(add-hook 'after-make-frame-functions
+          #'my/enable-pixel-scroll-on-graphical-frame)
+(when (display-graphic-p)
+  (pixel-scroll-precision-mode 1))
 
 (use-package pyim
   :ensure t

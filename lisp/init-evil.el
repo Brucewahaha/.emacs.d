@@ -2,13 +2,6 @@
 ;;; Commentary:
 ;;; Code:
 
-;; 1.撤销系统配置
-(use-package undo-fu
-  :ensure t
-  :config
-  ;; 如果你觉得撤销/重做的回显太烦，可以把 minibuffer 消息关掉，不用管
-  )
-
 (use-package vundo
   :ensure t
   :bind ("C-x u" . vundo) ; 绑定到 C-x u，或者你想用的任何键
@@ -21,7 +14,7 @@
   :init
   (setq evil-want-integration t)
   (setq evil-want-keybinding nil)
-  (setq evil-undo-system 'undo-fu)
+  (setq evil-undo-system 'undo-redo)
   ;; 确保 C-u 保持为 Vim 的翻页功能
   (setq evil-want-C-u-scroll t)
   ;; --- 【关键：在 Insert 模式保留 Emacs 快捷键】 ---

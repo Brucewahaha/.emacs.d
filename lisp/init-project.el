@@ -43,13 +43,8 @@
   (compilation-always-kill t)
   (compilation-scroll-output t))
 
-;; Projectile: 项目管理
-(use-package projectile
-  :ensure t
-  :init
-  (projectile-mode +1)
-  :bind (:map projectile-mode-map
-              ("C-c p" . projectile-command-map)))
+;; Keep the familiar prefix while using Emacs' built-in project commands.
+(global-set-key (kbd "C-c p") project-prefix-map)
 
 ;; Magit: 最好的 Git 客户端
 (use-package magit

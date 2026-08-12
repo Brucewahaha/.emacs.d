@@ -43,7 +43,7 @@
      (widget-forward 1))
    (setq dashboard-banner-logo-title "Welcome to Emacs!")
    (setq dashboard-startup-banner 'logo)
-   (setq dashboard-projects-backend 'projectile)
+   (setq dashboard-projects-backend 'project-el)
    (setq dashboard-page-separator "\n────────────────────────────────────────\n")
    (setq dashboard-icon-type 'nerd-icons
          dashboard-display-icons-p #'my/nerd-font-available-p

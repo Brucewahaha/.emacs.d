@@ -34,7 +34,7 @@
 (require 'init-dired)
 
 ;; --- 开发环境 ---
-(require 'init-project)    ; Magit/Projectile
+(require 'init-project)    ; Project/Magit
 (require 'init-remote)     ; Fast SSH remote development
 (require 'init-editing)
 (require 'init-lsp)
@@ -47,8 +47,7 @@
 (require 'init-evil)
 
 ;; 杂项
-(require 'sudo-edit nil t)
-(require 'htmlize nil t)
+(autoload 'sudo-edit "sudo-edit" nil t)
 
 (provide 'init)
 ;;; init.el ends here
