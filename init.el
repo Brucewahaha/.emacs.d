@@ -20,6 +20,7 @@
   (load my/local-config-file nil 'nomessage))
 (require 'init-site-lisp) ; 手动安装的包
 (require 'init-elpa)      ; 镜像源与 use-package 设置
+(require 'init-remote)    ; Load upgraded TRAMP before recentf can load built-in TRAMP
 (require 'init-environment)
 
 ;; GCMH 自动管理垃圾回收
@@ -35,7 +36,6 @@
 
 ;; --- 开发环境 ---
 (require 'init-project)    ; Project/Magit
-(require 'init-remote)     ; Fast SSH remote development
 (require 'init-editing)
 (require 'init-lsp)
 (require 'init-completion)

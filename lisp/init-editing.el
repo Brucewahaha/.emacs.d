@@ -33,7 +33,7 @@
           (lambda () (setq-local c-ts-mode-indent-offset 4)))
 
 (defun my/dtrt-indent-maybe-enable ()
-  "Detect indentation without overriding explicit EditorConfig settings."
+  "Detect indentation where the language does not have a stable default."
   (when (and buffer-file-name
              (derived-mode-p 'prog-mode 'text-mode))
     (let ((properties
@@ -42,7 +42,11 @@
                   (and (gethash 'indent_size properties) t)
                   dtrt-indent-explicit-tab-mode
                   (and (gethash 'indent_style properties) t)))
-    (dtrt-indent-mode 1)))
+    ;; C/C++ continuation lines frequently make heuristic detection mistake
+    ;; two spaces for the basic offset.  Use EditorConfig or the 4-space
+    ;; defaults above instead.
+    (unless (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
+      (dtrt-indent-mode 1))))
 
 (use-package dtrt-indent
   :ensure t

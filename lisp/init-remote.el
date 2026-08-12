@@ -3,7 +3,11 @@
 
 (use-package tramp
   :ensure t
-  :defer t)
+  :demand t
+  :config
+  (when (version< tramp-version "2.8.1.4")
+    (error "tramp-rpc requires TRAMP >= 2.8.1.4; loaded %s from %s"
+           tramp-version (symbol-file 'tramp-version))))
 
 (use-package msgpack
   :ensure t

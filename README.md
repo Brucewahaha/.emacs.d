@@ -194,18 +194,24 @@ C-x C-f
 
 `tramp-rpc` 通过 SSH 访问 x86_64/aarch64 Linux 或 macOS 远端，支持远程文件、Eglot、Magit、编译和终端。首次连接需要访问 GitHub 下载 server，并写入远端用户缓存目录；失败时可改用 `/ssh:user@host:/path` 排查。终端快捷键 `C-\`` 复用同一个 Eat Buffer，多项目或多主机之间不会自动创建独立终端。
 
-Windows Emacs 也可以把 WSL 当作 SSH 远端：在 WSL 中安装并启动 `openssh-server`，确认 Windows 终端可执行 `ssh user@localhost`，然后访问：
+Windows Emacs 也可以把 WSL 当作 SSH 远端：在 WSL 中安装并启动 `openssh-server`，并配置 Windows 到 WSL 的 SSH 公钥登录。先在 PowerShell 确认以下命令无需密码且输出 Linux 信息：
 
-```text
-/rpc:user@localhost:/home/user/project
+```powershell
+ssh -o BatchMode=yes <WSL用户名>@localhost "uname -a"
 ```
 
-这与 VS Code Remote WSL 的目标接近，但运行模型不同：Emacs 本体和界面仍在 Windows，文件操作和开发进程通过 TRAMP 在 WSL 执行。WSL2 的 `localhost` 转发通常可直接使用；若 SSH 端口不是 22，可写 `localhost#端口`。当前配置在 Windows 会关闭 SSH ControlMaster，以兼容 Windows OpenSSH。
+然后访问（尖括号内容必须替换，`user` 不是固定用户名）：
+
+```text
+/rpc:<WSL用户名>@localhost:/home/<WSL用户名>/project
+```
+
+这与 VS Code Remote WSL 的目标接近，但运行模型不同：Emacs 本体和界面仍在 Windows，文件操作和开发进程通过 TRAMP 在 WSL 执行。WSL2 的 `localhost` 转发通常可直接使用；若 SSH 端口不是 22，可写 `localhost#端口`。当前配置会优先加载外部 TRAMP 2.8.2，并在 Windows 关闭 SSH ControlMaster。使用不存在的用户名时，TRAMP 可能在文件名补全阶段等待认证，看起来像输入路径时卡住。
 
 ## 关键踩坑
 
 - Tree-sitter grammar 与操作系统、CPU 和 Emacs ABI 绑定，不要跨机器同步 `tree-sitter/`。Emacs 30.1 的 C grammar 固定到兼容 ABI 的版本。
-- `.editorconfig` 优先决定缩进；没有明确规则时 dtrt-indent 只在打开文件时推断宽度和 Tab 风格。输入代码时发生行缩进跳动通常来自 Major Mode 的 electric indent，可用 `M-x electric-indent-local-mode` 临时关闭并对比。
+- `.editorconfig` 优先决定缩进；C/C++ 没有规则时固定使用 4 空格，避免续行让 dtrt-indent 误判为 2。其他语言没有明确规则时才在打开文件时推断宽度和 Tab 风格。
 - 原生 Windows 的 MSYS GPG 可能错误处理盘符路径。配置已让 GPG 使用默认 home；不要长期关闭包签名验证。
 - TTY、SSH 和 WSL 终端没有额外系统剪贴板桥接，默认只操作 Emacs kill-ring。
 
