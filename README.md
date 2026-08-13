@@ -147,6 +147,7 @@ Linux、WSL 和 macOS 使用 Eat；原生 Windows 使用 Eshell。Pyim、Eshell 
 ```text
 C-c c              打开 Capture 菜单
 C-c a              打开 Agenda 菜单
+C-c o              搜索并打开 Org 文件或 Org 目录
 C-c C              打开可视日历
 C-c l              保存 Org Link
 C-c C-t            切换 TODO 状态

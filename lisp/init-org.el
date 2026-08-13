@@ -182,6 +182,21 @@
   "Build a quote template with source metadata."
   (my/org-note-template t))
 
+(defun my/org-open-file ()
+  "Open an Org file below `org-directory', or the directory itself."
+  (interactive)
+  (my/org-ensure-files-for-use)
+  (let* ((files (directory-files-recursively
+                 org-directory "\\.org\\(?:_archive\\)?\\'"))
+         (directory-label "[Org directory]")
+         (candidates
+          (cons (cons directory-label org-directory)
+                (mapcar (lambda (file)
+                          (cons (file-relative-name file org-directory) file))
+                        files)))
+         (choice (completing-read "Open Org: " candidates nil t)))
+    (find-file (cdr (assoc choice candidates)))))
+
 (defun my/org-next-projects ()
   "Return completion candidates for NEXT projects in Work and Personal."
   (let (projects)
@@ -597,6 +612,7 @@
 (global-set-key (kbd "C-c l") #'org-store-link)
 (global-set-key (kbd "C-c a") #'org-agenda)
 (global-set-key (kbd "C-c c") #'my/org-capture)
+(global-set-key (kbd "C-c o") #'my/org-open-file)
 (global-set-key (kbd "C-c C") #'my/org-open-visual-calendar)
 
 (provide 'init-org)
