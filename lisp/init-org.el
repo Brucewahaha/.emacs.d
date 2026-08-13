@@ -80,6 +80,7 @@
                   "|" "DONE(d!)" "CANCELLED(c@/!)"))
       org-log-done 'time
       org-log-into-drawer t
+      org-tags-column 0
       org-blank-before-new-entry '((heading . t) (plain-list-item . nil))
       org-refile-targets `((,my/org-work-file :maxlevel . 3)
                            (,my/org-personal-file :maxlevel . 3)
@@ -99,6 +100,7 @@
         (todo . "  %-10:c")
         (tags . "  %-10:c")
         (search . "  %-10:c"))
+      org-agenda-breadcrumbs-separator " › "
       org-agenda-time-grid
       '((daily today require-timed remove-match)
         (800 1000 1200 1400 1600 1800 2000)
@@ -118,69 +120,148 @@
             #'my/org-refile-with-heading-only)
 
 (defun my/org-created-at ()
-  "Return a plain inactive creation timestamp including seconds."
-  (format-time-string "[%Y-%m-%d %a %H:%M:%S]"))
+  "Return a plain inactive creation timestamp with minute precision."
+  (format-time-string "[%Y-%m-%d %a %H:%M]"))
+
+(defvar vertico-preselect)
 
 (defun my/org-read-tags ()
   "Prompt for optional tags and return them in Org headline syntax."
-  (let ((tags
-         (seq-remove
-          #'string-empty-p
-          (mapcar #'string-trim
-                  (completing-read-multiple
-                   "Tags (empty to skip): "
-                   (org-global-tags-completion-table) nil nil)))))
+  (let* ((vertico-preselect 'prompt)
+         (tags
+          (seq-remove
+           #'string-empty-p
+           (mapcar #'string-trim
+                   (completing-read-multiple
+                    "Tags (empty to skip): "
+                    (org-global-tags-completion-table) nil nil)))))
     (if tags (concat " :" (string-join tags ":") ":") "")))
 
-(defun my/org-read-optional-date (prompt)
-  "Read an optional Org date using PROMPT and return an active timestamp."
-  (let ((input (string-trim
-                (read-string (format "%s (empty to skip): " prompt)))))
-    (unless (string-empty-p input)
-      (format "<%s>" (org-read-date nil nil input)))))
+(defun my/org-agenda-relative-indent ()
+  "Indent Agenda items four spaces per level below a top-level task."
+  (make-string (* 4 (max 0 (- (org-outline-level) 2))) ?\s))
 
-(defun my/org-inbox-template ()
-  "Build an Inbox task template with optional tags and planning dates."
+(defun my/org-capture-properties (&optional source)
+  "Return the common property drawer, optionally including SOURCE."
+  (concat "  :PROPERTIES:\n"
+          (format "  :CREATED: %s\n" (my/org-created-at))
+          (if source (format "  :SOURCE: %s\n" source) "")
+          "  :END:\n"))
+
+(defun my/org-task-template ()
+  "Build the common task template."
+  (concat "* TODO " (read-string "Title: ") (my/org-read-tags) "\n"
+          (my/org-capture-properties)
+          "\n  %?\n"))
+
+(defun my/org-project-template ()
+  "Build a TODO or NEXT project, optionally with its first action."
+  (let* ((state (completing-read "Project state: " '("TODO" "NEXT") nil t))
+         (title (read-string "Project: "))
+         (tags (my/org-read-tags))
+         (first-action (and (string= state "NEXT")
+                            (string-trim
+                             (read-string "First next action (empty to skip): ")))))
+    (when (string-empty-p (or first-action ""))
+      (setq first-action nil))
+    (concat "* " state " " title (if first-action " [/]" "") tags "\n"
+            (my/org-capture-properties)
+            "\n  %?\n"
+            (if first-action (concat "** NEXT " first-action "\n") ""))))
+
+(defun my/org-note-template (&optional quote)
+  "Build the common note template; when QUOTE is non-nil, prompt for source."
   (let ((title (read-string "Title: "))
         (tags (my/org-read-tags))
-        (scheduled (my/org-read-optional-date "Scheduled"))
-        (deadline (my/org-read-optional-date "Deadline")))
-    (concat
-     "* TODO " title tags "\n"
-     (string-join
-      (delq nil
-            (list (and scheduled (format "  SCHEDULED: %s" scheduled))
-                  (and deadline (format "  DEADLINE: %s" deadline))
-                  (format "  %s" (my/org-created-at))))
-      "\n")
-     "\n\n  %?\n")))
+        (source (and quote (read-string "Source: "))))
+    (concat "* " title tags "\n"
+            (my/org-capture-properties source)
+            "\n  %?\n")))
+
+(defun my/org-quote-template ()
+  "Build a quote template with source metadata."
+  (my/org-note-template t))
+
+(defun my/org-next-projects ()
+  "Return completion candidates for NEXT projects in Work and Personal."
+  (let (projects)
+    (dolist (file (list my/org-work-file my/org-personal-file))
+      (when (file-readable-p file)
+        (with-current-buffer (find-file-noselect file)
+          (org-with-wide-buffer
+           (org-map-entries
+            (lambda ()
+              (when (and (string= (org-get-todo-state) "NEXT")
+                         (save-excursion
+                           (org-up-heading-safe)
+                           (string= (org-get-heading t t t t) "Projects")))
+                (let ((marker (copy-marker (point)))
+                      (title (org-get-heading t t t t)))
+                  (push (cons (format "%s — %s"
+                                      (file-name-base file) title)
+                              marker)
+                        projects))))
+            nil 'file)))))
+    (nreverse projects)))
+
+(defun my/org-capture-next-project-target ()
+  "Move point to the end of a selected NEXT project for Org Capture."
+  (let* ((projects (my/org-next-projects))
+         (choice (completing-read "NEXT project: " projects nil t))
+         (marker (cdr (assoc choice projects))))
+    (unless marker
+      (user-error "没有可用的 NEXT 项目"))
+    (set-buffer (marker-buffer marker))
+    (goto-char marker)))
+
+(defun my/org-read-checkboxes ()
+  "Read checkbox items until an empty value is entered."
+  (let (items item)
+    (while (not (string-empty-p
+                 (setq item (string-trim
+                             (read-string "Checkbox (empty to finish): ")))))
+      (push (format "   - [ ] %s" item) items))
+    (if items (concat "\n" (string-join (nreverse items) "\n") "\n") "")))
+
+(defun my/org-project-subtask-template ()
+  "Build a subtask with state, title and optional checkbox items."
+  (let ((state (completing-read "Task state: "
+                                '("TODO" "NEXT" "WAITING") nil t))
+        (title (read-string "Title: ")))
+    (concat "* " state " " title "\n"
+            (my/org-read-checkboxes)
+            "\n  %?\n")))
 
 (setq org-capture-templates
       `(("i" "Inbox")
         ("it" "Task" entry (file+headline ,my/org-inbox-file "Tasks")
-         (function my/org-inbox-template)
-         :prepend t)
+          (function my/org-task-template)
+          :prepend t)
         ("in" "Thought" entry (file+headline ,my/org-inbox-file "Thoughts")
-         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+          (function my/org-note-template) :prepend t)
         ("w" "Work")
         ("wt" "Task" entry (file+headline ,my/org-work-file "Tasks")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+          (function my/org-task-template) :prepend t)
         ("wp" "Project" entry (file+headline ,my/org-work-file "Projects")
-         "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+          (function my/org-project-template) :prepend t)
         ("p" "Personal")
         ("pl" "Life" entry (file+headline ,my/org-personal-file "Life")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+          (function my/org-task-template) :prepend t)
         ("pp" "Project" entry (file+headline ,my/org-personal-file "Projects")
-         "* TODO %^{项目名称} [0/0]\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+          (function my/org-project-template) :prepend t)
         ("ps" "Someday" entry (file+headline ,my/org-personal-file "Someday")
-         "* TODO %^{标题}\n  :PROPERTIES:\n  :CREATED: %U\n  :END:\n\n  %?\n" :prepend t)
+          (function my/org-task-template) :prepend t)
+        ("s" "Subtask for NEXT project" entry
+         (function my/org-capture-next-project-target)
+         (function my/org-project-subtask-template)
+         :empty-lines 1)
         ("n" "Notes")
         ("ni" "Idea" entry (file+headline ,my/org-notes-file "Ideas")
-         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+          (function my/org-note-template) :prepend t)
         ("nq" "Quote" entry (file+headline ,my/org-notes-file "Quotes")
-         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+          (function my/org-quote-template) :prepend t)
         ("nv" "Insight" entry (file+headline ,my/org-notes-file "Insights")
-         "* %^{标题}\n  %(my/org-created-at)\n\n  %?\n" :prepend t)
+          (function my/org-note-template) :prepend t)
         ("c" "Calendar")
         ("ce" "Event" entry (file+headline ,my/org-calendar-file "Events")
          "* %^{日程名称}\n  %^{日期与时间（可输入时间段）}T\n\n  %?\n" :prepend t)
@@ -224,8 +305,10 @@
          ((agenda "" ((org-agenda-span 1)
                       (org-agenda-overriding-header
                        (format "今日日程（Inbox: %d 条待处理）" (my/org-inbox-count)))))
-          (todo "NEXT" ((org-agenda-files ',my/org-action-files)
-                        (org-agenda-overriding-header "下一步行动")))))
+           (todo "NEXT" ((org-agenda-files ',my/org-action-files)
+                         (org-agenda-prefix-format
+                          "  %-10:c%(my/org-agenda-relative-indent)")
+                         (org-agenda-overriding-header "下一步行动")))))
         ("w" "本周任务与日程" agenda ""
          ((org-agenda-span 'week)
           (org-agenda-start-on-weekday 1)
@@ -253,11 +336,17 @@
                    (org-agenda-overriding-header "未来计划")))))
         ("p" "工作与个人任务回顾"
          ((todo "NEXT" ((org-agenda-files ',my/org-action-files)
-                        (org-agenda-overriding-header "下一步行动")))
-          (todo "WAITING" ((org-agenda-files ',my/org-action-files)
-                           (org-agenda-overriding-header "等待中")))
-          (todo "TODO" ((org-agenda-files ',my/org-action-files)
-                        (org-agenda-overriding-header "待拆分或待安排")))))))
+                         (org-agenda-prefix-format
+                          "  %-10:c%(my/org-agenda-relative-indent)")
+                         (org-agenda-overriding-header "下一步行动")))
+           (todo "WAITING" ((org-agenda-files ',my/org-action-files)
+                            (org-agenda-prefix-format
+                             "  %-10:c%(my/org-agenda-relative-indent)")
+                            (org-agenda-overriding-header "等待中")))
+           (todo "TODO" ((org-agenda-files ',my/org-action-files)
+                         (org-agenda-prefix-format
+                          "  %-10:c%(my/org-agenda-relative-indent)")
+                         (org-agenda-overriding-header "待拆分或待安排")))))))
 
 (defun my/org-agenda-enter-evil-normal-state ()
   "Enter Evil Normal state when an Org Agenda buffer is created."
@@ -452,7 +541,11 @@
 (use-package org-modern
   :ensure t
   :hook ((org-mode . org-modern-mode)
-         (org-agenda-finalize . org-modern-agenda)))
+         (org-agenda-finalize . org-modern-agenda))
+  :custom
+  (org-modern-star 'replace)
+  (org-modern-replace-stars '("●" "◉" "○" "•" "·"))
+  (org-modern-cycle-stars t))
 
 (defun my/org-appt-display (minutes time message)
   "Display an appointment notification MINUTES before TIME with MESSAGE."

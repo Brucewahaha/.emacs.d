@@ -13,6 +13,8 @@
 (show-paren-mode 1)
 (global-hl-line-mode 1)
 (add-hook 'prog-mode-hook #'hs-minor-mode)
+(add-hook 'prog-mode-hook #'visual-line-mode)
+(add-hook 'text-mode-hook #'visual-line-mode)
 (electric-indent-mode 1)
 
 ;; 缩进与 Tab
@@ -27,10 +29,79 @@
               c-basic-offset 4
               c++-basic-offset 4)
 (setq tab-always-indent 'complete)
-(add-hook 'c++-ts-mode-hook
-          (lambda () (setq-local c-ts-mode-indent-offset 4)))
-(add-hook 'c-ts-mode-hook
-          (lambda () (setq-local c-ts-mode-indent-offset 4)))
+
+(defun my/c-like-newline-and-indent ()
+  "Insert a newline using the previous C/C++ line as indentation context."
+  (interactive)
+  (if (nth 4 (syntax-ppss))
+      (let* ((indent (current-indentation))
+             (comment-start-pos (nth 8 (syntax-ppss)))
+             (line-comment
+              (and comment-start-pos
+                   (string= (buffer-substring-no-properties
+                             comment-start-pos
+                             (min (+ comment-start-pos 2) (point-max)))
+                            "//"))))
+        (newline)
+        (indent-to (+ indent (if line-comment 0 1)))
+        (insert (if line-comment "// " "* ")))
+    (let ((indent (current-indentation))
+          (opens-block
+           (save-excursion
+             (skip-chars-backward " \t")
+             (eq (char-before) ?\{)))
+          (case-label
+           (save-excursion
+             (beginning-of-line)
+             (looking-at-p "[ \t]*\\(?:case\\_>.*\\|default\\)[ \t]*:[ \t]*$")))
+          (macro-line
+           (save-excursion
+             (beginning-of-line)
+             (or (looking-at-p "[ \t]*#\\s-*define\\_>")
+                 (and (> (line-number-at-pos) 1)
+                      (progn
+                        (forward-line -1)
+                        (end-of-line)
+                        (skip-chars-backward " \t")
+                        (eq (char-before) ?\\))))))
+          (at-line-end
+           (save-excursion
+             (skip-chars-forward " \t")
+             (eolp)))
+          (between-braces (and (eq (char-before) ?\{)
+                               (eq (char-after) ?\}))))
+      (when (and macro-line at-line-end
+                 (not (save-excursion
+                        (skip-chars-backward " \t")
+                        (eq (char-before) ?\\))))
+        (insert " \\"))
+      (newline)
+      (indent-to (+ indent (if (or opens-block case-label)
+                               c-ts-mode-indent-offset
+                             0)))
+      (when between-braces
+        (save-excursion
+          (newline)
+          (indent-to indent))))))
+
+(defun my/c-like-tab-to-tab-stop ()
+  "Indent forward to the next C/C++ indentation stop."
+  (interactive)
+  (let ((tab-width c-ts-mode-indent-offset))
+    (tab-to-tab-stop)))
+
+(defun my/setup-flexible-c-like-editing ()
+  "Use predictable, syntax-independent indentation while typing C/C++."
+  (setq-local c-ts-mode-indent-offset 4)
+  (electric-indent-local-mode -1)
+  (local-set-key (kbd "RET") #'my/c-like-newline-and-indent)
+  (local-set-key (kbd "TAB") #'my/c-like-tab-to-tab-stop)
+  (when (fboundp 'evil-local-set-key)
+    (evil-local-set-key 'insert (kbd "RET") #'my/c-like-newline-and-indent)
+    (evil-local-set-key 'insert (kbd "TAB") #'my/c-like-tab-to-tab-stop)))
+
+(add-hook 'c++-ts-mode-hook #'my/setup-flexible-c-like-editing)
+(add-hook 'c-ts-mode-hook #'my/setup-flexible-c-like-editing)
 
 (defun my/dtrt-indent-maybe-enable ()
   "Detect indentation where the language does not have a stable default."
@@ -55,37 +126,32 @@
   :config
   (setq dtrt-indent-verbosity 0))
 
-(defun my/highlight-indent-guides-maybe-enable ()
-  "Enable indentation guides after the buffer's indentation is settled."
+(defun my/indent-bars-maybe-enable ()
+  "Enable indentation bars after the buffer's indentation is settled."
   (when (derived-mode-p 'prog-mode)
-    (highlight-indent-guides-mode 1)))
+    (indent-bars-mode 1)))
 
-(defface my/indent-guide-current-face
-  '((t (:inherit font-lock-keyword-face :weight normal)))
-  "Face for the indentation guide in the current block."
-  :group 'highlight-indent-guides)
-
-(defun my/highlight-indent-guides-highlighter (level responsive display)
-  "Choose a theme-aware guide face for LEVEL, RESPONSIVE and DISPLAY."
-  (if (eq responsive 'top)
-      'my/indent-guide-current-face
-    (highlight-indent-guides--highlighter-default level responsive display)))
-
-(use-package highlight-indent-guides
+(use-package indent-bars
   :ensure t
+  :commands indent-bars-mode
   :diminish
   :init
   ;; Run after EditorConfig, file-local variables and dtrt-indent.
   (add-hook 'hack-local-variables-hook
-            #'my/highlight-indent-guides-maybe-enable 90)
+            #'my/indent-bars-maybe-enable 90)
   :custom
-  (highlight-indent-guides-method 'character)
-  (highlight-indent-guides-character ?│)
-  (highlight-indent-guides-responsive 'top)
-  (highlight-indent-guides-highlighter-function
-   #'my/highlight-indent-guides-highlighter)
-  (highlight-indent-guides-delay 0.05)
-  (highlight-indent-guides-auto-character-face-perc 60))
+  (indent-bars-color '(font-lock-comment-face :blend 0.45))
+  (indent-bars-color-by-depth nil)
+  (indent-bars-width-frac 0.18)
+  (indent-bars-pad-frac 0.15)
+  (indent-bars-pattern ".")
+  (indent-bars-display-on-blank-lines t)
+  (indent-bars-highlight-current-depth
+   '(:face font-lock-keyword-face :blend 1.0 :width 0.18))
+  (indent-bars-treesit-support t)
+  ;; Tree-sitter still improves blank-line and wrapping behavior, but depth
+  ;; highlighting avoids coloring every nested bar in the current scope.
+  (indent-bars-treesit-scope nil))
 
 (use-package move-text
   :ensure t

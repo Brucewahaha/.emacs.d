@@ -1,11 +1,6 @@
 ;;; init-completion.el --- In-buffer completion and snippets -*- lexical-binding: t -*-
 ;;; Code:
 
-(defun my/corfu-minibuffer-p ()
-  "Enable Corfu in minibuffers not managed by Vertico or Mct."
-  (not (or (bound-and-true-p mct--active)
-           (bound-and-true-p vertico--input))))
-
 (use-package corfu
   :ensure t
   :hook (after-init . global-corfu-mode)
@@ -15,7 +10,8 @@
                ("M-q" . corfu-quick-complete)
                ("C-n" . corfu-next)
                ("C-p" . corfu-previous)
-               ("RET" . corfu-send)
+               ("RET" . nil)
+               ("M-RET" . corfu-insert)
               ("TAB" . corfu-next)
               ([tab] . corfu-next)
               ("S-TAB" . corfu-previous)
@@ -35,7 +31,7 @@
               (setq-local corfu-auto nil)))
 
   :custom
-  (global-corfu-minibuffer #'my/corfu-minibuffer-p)
+  (global-corfu-minibuffer nil)
   (corfu-cycle t)
   (corfu-auto t)
   (corfu-auto-delay 0.1)
