@@ -1,6 +1,8 @@
 ;;; init-remote.el --- Fast remote development -*- lexical-binding: t -*-
 ;;; Code:
 
+(require-package 'tramp "2.8.1.4")
+
 (use-package tramp
   :ensure t
   :demand t

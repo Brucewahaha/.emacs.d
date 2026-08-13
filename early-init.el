@@ -31,11 +31,15 @@
              (let (result)
                (dolist (directory
                         (directory-files package-dir t "\\`tramp-[0-9]"))
-                 (when (and (file-exists-p
-                             (expand-file-name "tramp.el" directory))
-                            (file-exists-p
-                             (expand-file-name "tramp-loaddefs.el" directory)))
-                   (push directory result)))
+                  (when (and (or (file-exists-p
+                                  (expand-file-name "tramp.el" directory))
+                                 (file-exists-p
+                                  (expand-file-name "tramp.elc" directory)))
+                             (or (file-exists-p
+                                  (expand-file-name "tramp-loaddefs.el" directory))
+                                 (file-exists-p
+                                  (expand-file-name "tramp-loaddefs.elc" directory))))
+                    (push directory result)))
                result))))
   (when tramp-dirs
     (let ((tramp-dir
@@ -43,7 +47,7 @@
                       (lambda (left right)
                         (string-version-lessp right left))))))
       (push tramp-dir load-path)
-      (load (expand-file-name "tramp-loaddefs.el" tramp-dir)
+      (load (expand-file-name "tramp-loaddefs" tramp-dir)
             nil 'nomessage))))
 
 (provide 'early-init)
