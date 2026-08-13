@@ -8,8 +8,11 @@
     "DejaVu Sans Mono" "monospace")
   "Preferred programming font families, ordered by preference.")
 (defconst my/cjk-font-families
-  '("Microsoft YaHei" "PingFang SC" "Hiragino Sans GB"
-    "Noto Sans CJK SC" "WenQuanYi Zen Hei Mono" "SimSun" "sans-serif")
+  '("Maple Mono Normal NF CN"
+    "Source Han Sans SC"
+    "Microsoft YaHei"
+    "Noto Sans SC"
+    "PingFang SC")
   "Preferred CJK font families, ordered by preference.")
 (defconst my/nerd-font-families
   '("Symbols Nerd Font Mono" "CaskaydiaMono Nerd Font Mono" "0xProto Nerd Font Mono")
