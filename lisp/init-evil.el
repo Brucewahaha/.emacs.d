@@ -151,6 +151,19 @@ then it takes a second \\[keyboard-quit] to abort the minibuffer."
     (abort-recursive-edit)))
 (define-key evil-normal-state-map [escape] 'keyboard-quit)
 (define-key evil-visual-state-map [escape] 'keyboard-quit)
+(dolist (map (list minibuffer-local-map
+                   minibuffer-local-ns-map
+                   minibuffer-local-completion-map
+                   minibuffer-local-must-match-map))
+  ;; Keep minibuffer editing independent from global completion and Consult keys.
+  (define-key map (kbd "C-SPC") #'set-mark-command)
+  (define-key map (kbd "C-a") #'move-beginning-of-line)
+  (define-key map (kbd "C-e") #'move-end-of-line)
+  (define-key map (kbd "C-k") #'kill-line)
+  (define-key map (kbd "C-w") #'kill-region)
+  (define-key map (kbd "C-y") #'yank)
+  (define-key map (kbd "M-y") #'yank-pop)
+  (define-key map (kbd "C-s") #'isearch-forward))
 (define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
 (define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
 (define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)

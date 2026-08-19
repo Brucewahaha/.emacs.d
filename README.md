@@ -88,6 +88,7 @@ C-c p e            在项目根打开 Eshell
 C-c b c            保存文件并选择项目编译命令
 C-c b r            保存文件并重复当前项目上次编译
 C-c b n / p        下一个 / 上一个编译错误
+M-!                保存文件并选择项目编译命令
 C-x g              打开 Magit Status
 ```
 
@@ -97,8 +98,8 @@ C-x g              打开 Magit Status
 
 ```text
 C-c t c            开关 Corfu 自动补全
-C-M-i              手动唤出 Corfu 补全菜单
-C-n/C-p，M-RET     选择上/下一个候选，确认当前候选
+C-SPC              在编辑区手动唤出 Corfu 补全菜单
+C-n/C-p，TAB       选择上/下一个候选，确认当前候选
 C-c t r            开关彩虹括号
 g d / g r          跳到定义 / 查找引用
 M-, / C-M-,        Xref 历史后退 / 前进

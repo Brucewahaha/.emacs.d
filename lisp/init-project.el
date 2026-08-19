@@ -37,7 +37,8 @@
   :bind (("C-c b c" . my/project-compile)
          ("C-c b r" . my/project-recompile)
          ("C-c b n" . next-error)
-         ("C-c b p" . previous-error))
+         ("C-c b p" . previous-error)
+         ("M-!" . my/project-compile))
   :hook (compilation-filter . ansi-color-compilation-filter)
   :custom
   (compilation-always-kill t)

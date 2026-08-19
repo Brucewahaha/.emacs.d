@@ -20,8 +20,8 @@
 (setq gc-cons-threshold most-positive-fixnum)
 
 ;; TRAMP-RPC requires a newer TRAMP than the one bundled with Emacs 30.1.
-;; Prefer an already installed upgrade before any startup component can load
-;; the built-in copy.  package.el will install it normally when absent.
+;; Prefer an installed upgrade when TRAMP is first needed, without loading it
+;; during startup.  package.el installs it normally when absent.
 (let* ((package-dir
         (expand-file-name
          (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
@@ -46,9 +46,7 @@
            (car (sort tramp-dirs
                       (lambda (left right)
                         (string-version-lessp right left))))))
-      (push tramp-dir load-path)
-      (load (expand-file-name "tramp-loaddefs" tramp-dir)
-            nil 'nomessage))))
+      (push tramp-dir load-path))))
 
 (provide 'early-init)
 

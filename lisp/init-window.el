@@ -7,6 +7,13 @@
   :hook (after-init . winner-mode))
 
 ;; 2. Popper: 實現 Doom 的 Popup 彈出窗口管理
+(defun my/popper-window-height (window)
+  "Use half the frame height for compilation windows."
+  (if (with-current-buffer (window-buffer window)
+        (derived-mode-p 'compilation-mode))
+      (floor (/ (frame-height (window-frame window)) 2))
+    (popper--fit-window-height window)))
+
 (use-package popper
   :ensure t
   :demand t
@@ -30,6 +37,7 @@
           compilation-mode
           grep-mode
           occur-mode))
+  (setq popper-window-height #'my/popper-window-height)
   :config
    (popper-mode 1)
    (popper-echo-mode 1)) ; 在底欄提示當前有幾個彈出窗口

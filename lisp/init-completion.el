@@ -12,8 +12,8 @@
                ("C-p" . corfu-previous)
                ("RET" . nil)
                ("M-RET" . corfu-insert)
-              ("TAB" . corfu-next)
-              ([tab] . corfu-next)
+               ("TAB" . corfu-insert)
+               ([tab] . corfu-insert)
               ("S-TAB" . corfu-previous)
               ([backtab] . corfu-previous))
   :config
@@ -38,6 +38,9 @@
   (corfu-auto-prefix 2)
   (corfu-preselect 'first)
   (corfu-preview-current nil))
+
+;; `C-SPC' starts completion in editing buffers; minibuffers retain its default.
+(global-set-key (kbd "C-SPC") #'completion-at-point)
 
 (remove-hook 'completion-at-point-functions #'ispell-completion-at-point)
 
