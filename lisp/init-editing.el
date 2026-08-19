@@ -77,22 +77,29 @@
         (insert " \\"))
       (newline)
       (indent-to (+ indent (if (or opens-block case-label)
-                               c-ts-mode-indent-offset
+                               (my/c-like-indent-offset)
                              0)))
       (when between-braces
         (save-excursion
           (newline)
           (indent-to indent))))))
 
+(defun my/c-like-indent-offset ()
+  "Return the indentation width for the active C/C++ mode."
+  (if (derived-mode-p 'c-ts-mode 'c++-ts-mode)
+      c-ts-mode-indent-offset
+    c-basic-offset))
+
 (defun my/c-like-tab-to-tab-stop ()
   "Indent forward to the next C/C++ indentation stop."
   (interactive)
-  (let ((tab-width c-ts-mode-indent-offset))
+  (let ((tab-width (my/c-like-indent-offset)))
     (tab-to-tab-stop)))
 
 (defun my/setup-flexible-c-like-editing ()
   "Use predictable, syntax-independent indentation while typing C/C++."
-  (setq-local c-ts-mode-indent-offset 4)
+  (when (derived-mode-p 'c-ts-mode 'c++-ts-mode)
+    (setq-local c-ts-mode-indent-offset 4))
   (electric-indent-local-mode -1)
   (local-set-key (kbd "RET") #'my/c-like-newline-and-indent)
   (local-set-key (kbd "TAB") #'my/c-like-tab-to-tab-stop)
@@ -102,6 +109,8 @@
 
 (add-hook 'c++-ts-mode-hook #'my/setup-flexible-c-like-editing)
 (add-hook 'c-ts-mode-hook #'my/setup-flexible-c-like-editing)
+(add-hook 'c++-mode-hook #'my/setup-flexible-c-like-editing)
+(add-hook 'c-mode-hook #'my/setup-flexible-c-like-editing)
 
 (defun my/dtrt-indent-maybe-enable ()
   "Detect indentation where the language does not have a stable default."
