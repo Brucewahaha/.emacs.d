@@ -218,7 +218,7 @@ ssh -o BatchMode=yes <WSL用户名>@localhost "uname -a"
 - Tree-sitter grammar 与操作系统、CPU 和 Emacs ABI 绑定，不要跨机器同步 `tree-sitter/`。Emacs 30.1 的 C grammar 固定到兼容 ABI 的版本。
 - `.editorconfig` 优先决定缩进；C/C++ 没有规则时固定使用 4 空格，避免续行让 dtrt-indent 误判为 2。其他语言没有明确规则时才在打开文件时推断宽度和 Tab 风格。
 - 文本和代码 Buffer 使用 Visual Line 按窗口宽度折行，不修改文件内容；缩进线使用 indent-bars，并强调光标所在的缩进深度。
-- C/C++ 输入时不根据未完成的语法树自动重排：`RET` 在 `{` 或 `case/default:` 后增加一级，并在宏定义行尾自动添加续行反斜杠；`TAB` 前进到下一个缩进位置。需要整理完整代码时选中区域执行 `M-x indent-region`。
+- 编程语言输入时不根据未完成的语法树自动重排：`RET` 使用语言模式的标准换行缩进，`TAB` 仅插入空格至下一个缩进位置，不触发补全。C/C++ 在 `{}` 中按 `RET` 会额外创建一个缩进的代码块；需要整理完整代码时选中区域执行 `M-x indent-region`。
 - 原生 Windows 的 MSYS GPG 可能错误处理盘符路径。配置已让 GPG 使用默认 home；不要长期关闭包签名验证。
 - TTY、SSH 和 WSL 终端没有额外系统剪贴板桥接，默认只操作 Emacs kill-ring。
 

@@ -15,7 +15,7 @@
 (add-hook 'prog-mode-hook #'hs-minor-mode)
 (add-hook 'prog-mode-hook #'visual-line-mode)
 (add-hook 'text-mode-hook #'visual-line-mode)
-(electric-indent-mode 1)
+(electric-indent-mode -1)
 
 ;; 缩进与 Tab
 (use-package editorconfig
@@ -30,87 +30,68 @@
               c++-basic-offset 4)
 (setq tab-always-indent 'complete)
 
-(defun my/c-like-newline-and-indent ()
-  "Insert a newline using the previous C/C++ line as indentation context."
+(defun my/insert-spaces-to-tab-stop ()
+  "Insert spaces to the next tab stop without invoking completion."
   (interactive)
-  (if (nth 4 (syntax-ppss))
-      (let* ((indent (current-indentation))
-             (comment-start-pos (nth 8 (syntax-ppss)))
-             (line-comment
-              (and comment-start-pos
-                   (string= (buffer-substring-no-properties
-                             comment-start-pos
-                             (min (+ comment-start-pos 2) (point-max)))
-                            "//"))))
+  (let ((indent-tabs-mode nil))
+    (tab-to-tab-stop)))
+
+(defun my/setup-basic-prog-indentation ()
+  "Use lightweight newline and space-only tab behavior in programming modes."
+  (unless (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
+    (electric-indent-local-mode -1)
+    (local-set-key (kbd "RET") #'newline-and-indent)
+    (local-set-key (kbd "TAB") #'my/insert-spaces-to-tab-stop)
+    (local-set-key (kbd "<tab>") #'my/insert-spaces-to-tab-stop)))
+
+(add-hook 'prog-mode-hook #'my/setup-basic-prog-indentation)
+
+(defun my/c-like-newline-and-indent ()
+  "Insert and indent a C/C++ newline, expanding an empty brace pair."
+  (interactive)
+  (if (and (eq (char-before) ?\{)
+           (eq (char-after) ?\}))
+      (let ((indent (current-indentation)))
         (newline)
-        (indent-to (+ indent (if line-comment 0 1)))
-        (insert (if line-comment "// " "* ")))
-    (let ((indent (current-indentation))
-          (opens-block
-           (save-excursion
-             (skip-chars-backward " \t")
-             (eq (char-before) ?\{)))
-          (case-label
-           (save-excursion
-             (beginning-of-line)
-             (looking-at-p "[ \t]*\\(?:case\\_>.*\\|default\\)[ \t]*:[ \t]*$")))
-          (macro-line
-           (save-excursion
-             (beginning-of-line)
-             (or (looking-at-p "[ \t]*#\\s-*define\\_>")
-                 (and (> (line-number-at-pos) 1)
-                      (progn
-                        (forward-line -1)
-                        (end-of-line)
-                        (skip-chars-backward " \t")
-                        (eq (char-before) ?\\))))))
-          (at-line-end
-           (save-excursion
-             (skip-chars-forward " \t")
-             (eolp)))
-          (between-braces (and (eq (char-before) ?\{)
-                               (eq (char-after) ?\}))))
-      (when (and macro-line at-line-end
-                 (not (save-excursion
-                        (skip-chars-backward " \t")
-                        (eq (char-before) ?\\))))
-        (insert " \\"))
-      (newline)
-      (indent-to (+ indent (if (or opens-block case-label)
-                               (my/c-like-indent-offset)
-                             0)))
-      (when between-braces
+        (indent-to (+ indent (my/c-like-indent-offset)))
         (save-excursion
           (newline)
-          (indent-to indent))))))
+          (indent-to indent)))
+    (newline-and-indent)))
 
 (defun my/c-like-indent-offset ()
-  "Return the indentation width for the active C/C++ mode."
-  (if (derived-mode-p 'c-ts-mode 'c++-ts-mode)
-      c-ts-mode-indent-offset
-    c-basic-offset))
+  "Return the effective C/C++ indentation width for this buffer."
+  tab-width)
+
+(defun my/sync-c-like-indent-width ()
+  "Use the buffer's configured tab width for C/C++ syntax indentation."
+  (when (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
+    (setq-local c-basic-offset tab-width)
+    (when (derived-mode-p 'c-ts-mode 'c++-ts-mode)
+      (setq-local c-ts-mode-indent-offset tab-width))))
 
 (defun my/c-like-tab-to-tab-stop ()
   "Indent forward to the next C/C++ indentation stop."
   (interactive)
-  (let ((tab-width (my/c-like-indent-offset)))
-    (tab-to-tab-stop)))
+  (my/insert-spaces-to-tab-stop))
 
 (defun my/setup-flexible-c-like-editing ()
-  "Use predictable, syntax-independent indentation while typing C/C++."
-  (when (derived-mode-p 'c-ts-mode 'c++-ts-mode)
-    (setq-local c-ts-mode-indent-offset 4))
+  "Use lightweight, predictable indentation while typing C/C++."
+  (my/sync-c-like-indent-width)
   (electric-indent-local-mode -1)
   (local-set-key (kbd "RET") #'my/c-like-newline-and-indent)
   (local-set-key (kbd "TAB") #'my/c-like-tab-to-tab-stop)
+  (local-set-key (kbd "<tab>") #'my/c-like-tab-to-tab-stop)
   (when (fboundp 'evil-local-set-key)
     (evil-local-set-key 'insert (kbd "RET") #'my/c-like-newline-and-indent)
-    (evil-local-set-key 'insert (kbd "TAB") #'my/c-like-tab-to-tab-stop)))
+    (evil-local-set-key 'insert (kbd "TAB") #'my/c-like-tab-to-tab-stop)
+    (evil-local-set-key 'insert (kbd "<tab>") #'my/c-like-tab-to-tab-stop)))
 
 (add-hook 'c++-ts-mode-hook #'my/setup-flexible-c-like-editing)
 (add-hook 'c-ts-mode-hook #'my/setup-flexible-c-like-editing)
 (add-hook 'c++-mode-hook #'my/setup-flexible-c-like-editing)
 (add-hook 'c-mode-hook #'my/setup-flexible-c-like-editing)
+(add-hook 'hack-local-variables-hook #'my/sync-c-like-indent-width 80)
 
 (defun my/dtrt-indent-maybe-enable ()
   "Detect indentation where the language does not have a stable default."
