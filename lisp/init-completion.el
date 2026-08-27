@@ -39,9 +39,6 @@
   (corfu-preselect 'first)
   (corfu-preview-current nil))
 
-;; `C-SPC' starts completion in editing buffers; minibuffers retain its default.
-(global-set-key (kbd "C-SPC") #'completion-at-point)
-
 (remove-hook 'completion-at-point-functions #'ispell-completion-at-point)
 
 (use-package cape

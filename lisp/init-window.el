@@ -8,11 +8,8 @@
 
 ;; 2. Popper: 實現 Doom 的 Popup 彈出窗口管理
 (defun my/popper-window-height (window)
-  "Use half the frame height for compilation windows."
-  (if (with-current-buffer (window-buffer window)
-        (derived-mode-p 'compilation-mode))
-      (floor (/ (frame-height (window-frame window)) 2))
-    (popper--fit-window-height window)))
+  "Use one third of the frame height for popup WINDOW."
+  (floor (/ (frame-height (window-frame window)) 3)))
 
 (use-package popper
   :ensure t

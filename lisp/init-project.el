@@ -35,10 +35,7 @@
 (use-package compile
   :ensure nil
   :bind (("C-c b c" . my/project-compile)
-         ("C-c b r" . my/project-recompile)
-         ("C-c b n" . next-error)
-         ("C-c b p" . previous-error)
-         ("M-!" . compile))
+         ("C-c b r" . my/project-recompile))
   :hook (compilation-filter . ansi-color-compilation-filter)
   :custom
   (compilation-always-kill t)

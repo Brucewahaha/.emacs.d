@@ -34,6 +34,8 @@ C-s                搜索当前 Buffer
 M-s r              使用 ripgrep 搜索项目或目录
 C-x b              搜索并切换 Buffer
 C-c r              打开最近文件
+C-SPC              开始或取消选择区域
+M-TAB / C-M-i      手动触发光标处补全
 C-. / M-.          在 Minibuffer 中显示候选操作 / 执行默认操作
 C-h f/v/k          查看函数、变量或按键帮助
 C-h B              查看当前可用按键
@@ -70,6 +72,8 @@ C-w o 或 M-o       使用 Ace Window 选择窗口
 
 帮助、编译、诊断和终端等临时 Buffer 由 Popper 管理：
 
+所有 Popper 弹窗和 `C-\`` 打开的 Eat/Eshell 底部终端占当前 Frame 约三分之一高度。
+
 ```text
 C-c `              显示或隐藏最近的弹窗
 M-`                在弹窗间循环
@@ -87,8 +91,8 @@ C-c p D            在项目根打开 Dired
 C-c p e            在项目根打开 Eshell
 C-c b c            保存文件并选择项目编译命令
 C-c b r            保存文件并重复当前项目上次编译
-C-c b n / p        下一个 / 上一个编译错误
-M-!                选择当前目录编译命令
+M-g n / M-g p      下一个 / 上一个编译错误
+M-!                在当前目录执行 Shell 命令
 C-x g              打开 Magit Status
 ```
 
@@ -98,7 +102,6 @@ C-x g              打开 Magit Status
 
 ```text
 C-c t c            开关 Corfu 自动补全
-C-SPC              在编辑区手动唤出 Corfu 补全菜单
 C-n/C-p，TAB       选择上/下一个候选，确认当前候选
 C-c t r            开关彩虹括号
 g d / g r          跳到定义 / 查找引用

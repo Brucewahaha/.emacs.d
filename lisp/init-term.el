@@ -12,9 +12,9 @@
         (setq buffer (get-buffer "*eshell*")))
       (select-window
        (display-buffer
-        buffer
-        '((display-buffer-reuse-window display-buffer-at-bottom)
-          (window-height . 0.2)))))))
+         buffer
+         '((display-buffer-reuse-window display-buffer-at-bottom)
+           (window-height . 0.33)))))))
 
 ;; 1. Eat 基础配置 (替代 Eshell 作为 Unix/WSL 核心)
 (defun my/eat-toggle ()
@@ -33,9 +33,9 @@
                 (eat my/eat-shell-program))))
       (select-window
        (display-buffer
-        eat-buffer
-        '((display-buffer-reuse-window display-buffer-at-bottom)
-          (window-height . 0.2)))))))
+         eat-buffer
+         '((display-buffer-reuse-window display-buffer-at-bottom)
+           (window-height . 0.33)))))))
 
 (defun my/terminal-toggle ()
   "Toggle Eat, falling back to Eshell on native Windows."
