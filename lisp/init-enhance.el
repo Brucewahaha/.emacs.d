@@ -61,7 +61,7 @@
   :ensure t
   :hook (prog-mode . my/rainbow-delimiters-maybe-enable)
   :config
-  (defvar my/rainbow-delimiters-enabled t
+  (defvar my/rainbow-delimiters-enabled nil
     "非 nil 时在编程 Buffer 中启用彩虹括号。")
   (defun my/rainbow-delimiters-maybe-enable ()
     "按全局开关启用当前 Buffer 的彩虹括号。"

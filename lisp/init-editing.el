@@ -31,10 +31,16 @@
 (setq tab-always-indent 'complete)
 
 (defun my/insert-spaces-to-tab-stop ()
-  "Insert spaces to the next tab stop without invoking completion."
+  "Confirm an active Corfu candidate, or insert spaces to the next tab stop."
   (interactive)
-  (let ((indent-tabs-mode nil))
-    (tab-to-tab-stop)))
+  ;; Evil's Insert-state map takes precedence over Corfu's popup map.
+  (if (and (bound-and-true-p completion-in-region-mode)
+           (boundp 'corfu--candidates)
+           corfu--candidates
+           (fboundp 'corfu-insert))
+      (corfu-insert)
+    (let ((indent-tabs-mode nil))
+      (tab-to-tab-stop))))
 
 (defun my/setup-basic-prog-indentation ()
   "Use lightweight newline and space-only tab behavior in programming modes."

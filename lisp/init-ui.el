@@ -39,9 +39,6 @@
        (cl-find-if (lambda (family)
                      (member family (font-family-list)))
                    my/nerd-font-families)))
-;; (when (fboundp 'tool-bar-mode) (tool-bar-mode -1))
-;; (when (fboundp 'set-scroll-bar-mode) (set-scroll-bar-mode nil))
-;; (menu-bar-mode -1)
 ;; 2. 行号与视觉反馈
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-type 'relative)
@@ -64,11 +61,25 @@
                 (tab-line-tabs-fixed-window-buffers))))
 (defun my/tab-line-tab-name (buffer buffers)
   "返回 BUFFER 的编号和截断后的标签名称。"
-  (let ((index (1+ (seq-position buffers buffer))))
-    (concat (when (eq buffer (current-buffer))
-              (propertize "▌" 'face 'font-lock-keyword-face))
-            (format "%d %s" index
-                    (tab-line-tab-name-truncated-buffer buffer buffers)))))
+  (format "%d %s%s"
+          (1+ (seq-position buffers buffer))
+          (tab-line-tab-name-truncated-buffer buffer buffers)
+          (if (buffer-modified-p buffer) " *" "")))
+(defun my/tab-line-tab-name-format (tab tabs)
+  "Format TAB and apply semantic faces to Dired and unsaved indicators."
+  (let* ((buffer (if (bufferp tab) tab (alist-get 'buffer tab)))
+         (name (if buffer
+                   (funcall tab-line-tab-name-function buffer tabs)
+                 (alist-get 'name tab)))
+         (display-name (string-replace "%" "%%" name))
+         (formatted (tab-line-tab-name-format-default tab tabs)))
+    (when (and buffer
+               (with-current-buffer buffer (derived-mode-p 'dired-mode)))
+      (add-face-text-property 0 (length display-name)
+                              'font-lock-comment-face nil formatted))
+    (when (and buffer (buffer-modified-p buffer))
+      (add-face-text-property 0 (length display-name) 'warning nil formatted))
+    formatted))
 (defun my/tab-line-switch-to-index (index)
   "跳转到当前 Window 标签栏中的第 INDEX 个 Buffer。"
   (interactive "p")
@@ -106,10 +117,24 @@
       tab-line-new-button-show nil
       tab-line-close-button-show t
       tab-line-tab-name-function #'my/tab-line-tab-name
+      tab-line-tab-name-format-function #'my/tab-line-tab-name-format
       tab-line-tab-name-truncated-max 20
-      tab-line-separator (propertize " " 'display '(space :width 0.5))
+      tab-line-separator (propertize "|" 'face 'tab-line)
+      tab-line-tab-face-functions '(tab-line-tab-face-modified
+                                    my/tab-line-tab-face-current-highlight)
       tab-line-close-tab-function #'my/tab-line-close-tab
       switch-to-prev-buffer-skip #'my/switch-to-prev-buffer-skip)
+(defun my/tab-line-tab-face-current-highlight
+    (tab _tabs face buffer-p selected-p)
+  "Apply the theme's hover highlight to an unmodified current TAB."
+  (when selected-p
+    (let ((buffer (if buffer-p tab (alist-get 'buffer tab))))
+      (setq face
+            `(:inherit (tab-line-highlight
+                        ,(if (and buffer (buffer-modified-p buffer))
+                             face
+                           'tab-line-tab-inactive))))))
+  face)
 (defun my/set-tab-line-close-button (icon)
   "将标签关闭按钮设置为 ICON。"
   (setq tab-line-close-button
@@ -141,32 +166,21 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   (my/setup-icons))
 (global-tab-line-mode 1)
 
-(defun my/tab-line-apply-theme-colors ()
-  "Use the current theme's semantic faces for tab-line states."
+(defun my/tab-line-remove-borders ()
+  "Remove Tab Line borders while leaving its colors to the current theme."
   (interactive)
-  (set-face-attribute 'tab-line nil
-                      :inherit 'mode-line-inactive
-                      :box nil)
-  (set-face-attribute 'tab-line-tab nil
-                      :inherit 'tab-line
-                      :box nil)
-  (set-face-attribute 'tab-line-tab-inactive nil
-                      :inherit 'tab-line
-                      :weight 'normal
-                      :box nil)
-  (set-face-attribute 'tab-line-tab-current nil
-                      :inherit 'default
-                      :weight 'bold
-                      :box nil
-                      :underline nil)
-  (set-face-attribute 'tab-line-tab-modified nil
-                      :inherit 'warning)
-  (set-face-attribute 'tab-line-tab-special nil
-                      :inherit 'font-lock-comment-face
-                      :slant 'italic)
-  (set-face-attribute 'tab-line-close-highlight nil
-                      :inherit 'error
-                      :box nil))
+  (dolist (face '(tab-line tab-line-tab tab-line-tab-current
+                  tab-line-tab-inactive tab-line-tab-modified
+                  tab-line-close-highlight))
+    (set-face-attribute face nil :box nil))
+  (tab-line-force-update t))
+
+(defun my/reset-tab-line-faces ()
+  "Clear old direct Tab Line face attributes before loading a theme."
+  (dolist (face '(tab-line tab-line-tab tab-line-tab-current
+                  tab-line-tab-inactive tab-line-tab-modified
+                  tab-line-close-highlight))
+    (face-spec-reset-face face)))
 
 (defun my/apply-ui-font-size ()
   "Apply `my/ui-font-height' to interface text faces."
@@ -201,17 +215,18 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   (my/setup-icons))
 
 
-(defconst my/night-theme 'doom-wilmersdorf)
+(defconst my/night-theme 'modus-vivendi)
 (defconst my/light-theme 'doric-jade)
 
 (defun my/load-theme (theme)
   "Enable THEME after disabling every currently active theme."
   (dolist (enabled-theme (copy-sequence custom-enabled-themes))
     (disable-theme enabled-theme))
+  (my/reset-tab-line-faces)
   (load-theme theme t)
   (when (fboundp 'my/setup-font)
     (my/setup-font))
-  (my/tab-line-apply-theme-colors)
+  (my/tab-line-remove-borders)
   (my/apply-ui-font-size))
 
 (defun my/toggle-theme ()
@@ -224,19 +239,18 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
 (use-package doric-themes
   :ensure t)
 
-;; 加载 Doom Themes 集成，供 Treemacs、Org 和视觉铃声在两种主题下使用。
-(use-package doom-themes
-  :ensure t
-  :demand t
-  :init
-  (setq doom-themes-enable-bold t
-        doom-themes-enable-italic t
-        doom-themes-treemacs-theme "doom-atom"
-        doom-themes-treemacs-enable-variable-pitch nil)
-  :config
-  (doom-themes-visual-bell-config)
-  (doom-themes-treemacs-config)
-  (doom-themes-org-config))
+;; (use-package doom-themes
+;;   :ensure t
+;;   :demand t
+;;   :init
+;;   (setq doom-themes-enable-bold t
+;;         doom-themes-enable-italic t
+;;         doom-themes-treemacs-theme "doom-atom"
+;;         doom-themes-treemacs-enable-variable-pitch nil)
+;;   :config
+;;   (doom-themes-visual-bell-config)
+;;   (doom-themes-treemacs-config)
+;;   (doom-themes-org-config))
 
 (my/load-theme my/night-theme)
 (global-set-key (kbd "C-c t t") #'my/toggle-theme)

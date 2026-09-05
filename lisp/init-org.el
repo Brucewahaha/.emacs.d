@@ -123,6 +123,10 @@
   "Return a plain inactive creation timestamp with minute precision."
   (format-time-string "[%Y-%m-%d %a %H:%M]"))
 
+(defun my/org-capture-created-line ()
+  "Return the body line used for an entry's creation timestamp."
+  (concat "  " (my/org-created-at) "\n"))
+
 (defvar vertico-preselect)
 
 (defun my/org-read-tags ()
@@ -141,17 +145,10 @@
   "Indent Agenda items four spaces per level below a top-level task."
   (make-string (* 4 (max 0 (- (org-outline-level) 2))) ?\s))
 
-(defun my/org-capture-properties (&optional source)
-  "Return the common property drawer, optionally including SOURCE."
-  (concat "  :PROPERTIES:\n"
-          (format "  :CREATED: %s\n" (my/org-created-at))
-          (if source (format "  :SOURCE: %s\n" source) "")
-          "  :END:\n"))
-
 (defun my/org-task-template ()
   "Build the common task template."
   (concat "* TODO " (read-string "Title: ") (my/org-read-tags) "\n"
-          (my/org-capture-properties)
+          (my/org-capture-created-line)
           "\n  %?\n"))
 
 (defun my/org-project-template ()
@@ -165,7 +162,7 @@
     (when (string-empty-p (or first-action ""))
       (setq first-action nil))
     (concat "* " state " " title (if first-action " [/]" "") tags "\n"
-            (my/org-capture-properties)
+            (my/org-capture-created-line)
             "\n  %?\n"
             (if first-action (concat "** NEXT " first-action "\n") ""))))
 
@@ -175,8 +172,39 @@
         (tags (my/org-read-tags))
         (source (and quote (read-string "Source: "))))
     (concat "* " title tags "\n"
-            (my/org-capture-properties source)
+            (my/org-capture-created-line)
+            (if (string-empty-p (or source "")) ""
+              (concat "  Source: " source "\n"))
             "\n  %?\n")))
+
+(defun my/org-promote-creation-timestamp ()
+  "Move the inactive timestamp at point into the current entry's CREATED property."
+  (interactive)
+  (unless (org-at-timestamp-p 'inactive)
+    (user-error "请将光标放在要转入 CREATED 的 inactive timestamp 上"))
+  (require 'org-element)
+  (let* ((element (org-element-context))
+         (timestamp (string-trim (org-element-property :raw-value element)))
+         (begin (copy-marker (org-element-property :begin element)))
+         (end (copy-marker (org-element-property :end element) t)))
+    (unless (eq (org-element-type element) 'timestamp)
+      (user-error "当前位置不是可用的 timestamp"))
+    (save-excursion
+      (goto-char begin)
+      (org-back-to-heading t)
+      (when (org-entry-get nil "CREATED")
+        (user-error "当前条目已有 CREATED 属性"))
+      (org-entry-put nil "CREATED" timestamp))
+    (goto-char begin)
+    (if (string= (string-trim
+                  (buffer-substring-no-properties
+                   (line-beginning-position) (line-end-position)))
+                 timestamp)
+        (delete-region (line-beginning-position)
+                       (min (point-max) (1+ (line-end-position))))
+      (delete-region begin end))
+    (set-marker begin nil)
+    (set-marker end nil)))
 
 (defun my/org-quote-template ()
   "Build a quote template with source metadata."
@@ -394,6 +422,10 @@
     (add-hook 'org-capture-mode-hook #'evil-insert-state)
     (evil-define-key 'normal org-capture-mode-map
       (kbd "q") #'org-capture-kill)))
+
+(with-eval-after-load 'org
+  (define-key org-mode-map (kbd "C-c C-x C-k")
+              #'my/org-promote-creation-timestamp))
 
 (defun my/calendar-show-agenda-at-mouse (event)
   "Show the daily Agenda for the Calendar date clicked in EVENT."

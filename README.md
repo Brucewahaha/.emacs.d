@@ -52,6 +52,9 @@ s                  输入两个字符后使用 Avy 跳转
 M-↑ / M-↓          移动当前代码行或选区
 M-d / M-D          添加下一个 / 上一个相同文本到多光标
 C-g                退出多光标会话
+ys{motion}{char}   添加包围符号，例如 ysiw)
+cs{old}{new}       修改包围符号
+ds{char}           删除包围符号
 ```
 
 Vundo 用于查看分叉的撤销历史；日常 `u`/`C-r` 使用内置 undo-redo 后端。
@@ -103,7 +106,7 @@ C-x g              打开 Magit Status
 ```text
 C-c t c            开关 Corfu 自动补全
 C-n/C-p，TAB       选择上/下一个候选，确认当前候选
-C-c t r            开关彩虹括号
+C-c t r            开关彩虹括号（默认关闭）
 g d / g r          跳到定义 / 查找引用
 M-, / C-M-,        Xref 历史后退 / 前进
 g h                显示光标处悬浮文档
@@ -141,7 +144,7 @@ a / r / c / d       新建 / 重命名 / 复制 / 删除
 C-`                打开或关闭底部终端
 C-\                切换 Pyim 小鹤双拼
 M-j                转换光标前的拼音
-C-c t t            切换深色和浅色主题
+C-c t t            在 Modus Vivendi 深色与 Doric Jade 浅色主题间切换
 ```
 
 Linux、WSL 和 macOS 使用 Eat；原生 Windows 使用 Eshell。Pyim、Eshell 和 SICP/Geiser 都在首次使用时加载。
@@ -158,6 +161,8 @@ C-c C-t            切换 TODO 状态
 C-c C-s / C-c C-d  设置计划日期 / 截止日期
 C-c C-w            Refile
 C-c C-x C-s        归档当前任务或项目
+C-c C-x p          设置 Property，自动创建 Property Drawer
+C-c C-x C-k        将光标处的创建时间移入 CREATED Property
 ```
 
 常用 Capture：
@@ -187,6 +192,7 @@ Org 文件默认位于 `~/org/`，Windows 位于 `%USERPROFILE%/org/`。首次�
 重要注意事项：
 
 - Capture 用 `C-c C-c` 保存、`C-c C-k` 取消；Agenda 是只读面板，应按 `RET` 回源文件编辑。
+- Task、Project 和 Note Capture 将创建时间写在标题下的正文首行，不默认创建 Property Drawer；Quote 的来源写为正文中的 `Source:` 行。需要 Drawer 时，将光标放在该时间上按 `C-c C-x C-k`，会创建 `CREATED` Property 并删除正文中的原时间。
 - Refile 应选择带标题的目标，例如 `work.org/Tasks`，不要选择文件根。
 - 手机同步应落到本机 Org 目录，不建议让 Agenda 直接操作 WebDAV TRAMP 路径。
 - Windows 仅对同步 Org 文件每 5 秒轮询；未修改的 Buffer 才会自动重载。
