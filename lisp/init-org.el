@@ -128,6 +128,12 @@
   "Return the body line used for an entry's creation timestamp."
   (concat (my/org-created-at) "\n"))
 
+(defun my/org-capture-source-line ()
+  "Prompt for an optional source and return its body line."
+  (let ((source (string-trim (read-string "Source (empty to skip): "))))
+    (if (string-empty-p source) ""
+      (concat "Source: " source "\n"))))
+
 (defvar vertico-preselect)
 
 (defun my/org-read-tags ()
@@ -150,6 +156,7 @@
   "Build the common task template."
   (concat "* TODO " (read-string "Title: ") (my/org-read-tags) "\n"
           (my/org-capture-created-line)
+          (my/org-capture-source-line)
           "%?\n"))
 
 (defun my/org-project-template ()
@@ -164,18 +171,17 @@
       (setq first-action nil))
     (concat "* " state " " title (if first-action " [/]" "") tags "\n"
             (my/org-capture-created-line)
+            (my/org-capture-source-line)
             "%?\n"
             (if first-action (concat "** NEXT " first-action "\n") ""))))
 
-(defun my/org-note-template (&optional quote)
-  "Build the common note template; when QUOTE is non-nil, prompt for source."
+(defun my/org-note-template ()
+  "Build the common note template."
   (let ((title (read-string "Title: "))
-        (tags (my/org-read-tags))
-        (source (and quote (read-string "Source: "))))
+        (tags (my/org-read-tags)))
     (concat "* " title tags "\n"
             (my/org-capture-created-line)
-            (if (string-empty-p (or source "")) ""
-              (concat "Source: " source "\n"))
+            (my/org-capture-source-line)
             "%?\n")))
 
 (defun my/org-promote-creation-timestamp ()
@@ -206,10 +212,6 @@
       (delete-region begin end))
     (set-marker begin nil)
     (set-marker end nil)))
-
-(defun my/org-quote-template ()
-  "Build a quote template with source metadata."
-  (my/org-note-template t))
 
 (defun my/org-open-file ()
   "Open an Org file below `org-directory', or the directory itself."
@@ -274,45 +276,56 @@
         (title (read-string "Title: ")))
     (concat "* " state " " title "\n"
             (my/org-read-checkboxes)
-            "\n%?\n")))
+            (my/org-capture-source-line)
+            "%?\n")))
 
 (setq org-capture-templates
       `(("i" "Inbox")
         ("it" "Task" entry (file+headline ,my/org-inbox-file "Tasks")
           (function my/org-task-template)
-          :prepend t :empty-lines 1)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("in" "Thought" entry (file+headline ,my/org-inbox-file "Thoughts")
-          (function my/org-note-template) :prepend t :empty-lines 1)
+          (function my/org-note-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("w" "Work")
         ("wt" "Task" entry (file+headline ,my/org-work-file "Tasks")
-          (function my/org-task-template) :prepend t :empty-lines 1)
+          (function my/org-task-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("wp" "Project" entry (file+headline ,my/org-work-file "Projects")
-          (function my/org-project-template) :prepend t :empty-lines 1)
+          (function my/org-project-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("p" "Personal")
         ("pl" "Life" entry (file+headline ,my/org-personal-file "Life")
-          (function my/org-task-template) :prepend t :empty-lines 1)
+          (function my/org-task-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("pp" "Project" entry (file+headline ,my/org-personal-file "Projects")
-          (function my/org-project-template) :prepend t :empty-lines 1)
+          (function my/org-project-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("ps" "Someday" entry (file+headline ,my/org-personal-file "Someday")
-          (function my/org-task-template) :prepend t :empty-lines 1)
+          (function my/org-task-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("s" "Subtask for NEXT project" entry
          (function my/org-capture-next-project-target)
          (function my/org-project-subtask-template)
-         :empty-lines 1)
+         :empty-lines-before 0 :empty-lines-after 1)
         ("n" "Notes")
         ("ni" "Idea" entry (file+headline ,my/org-notes-file "Ideas")
-          (function my/org-note-template) :prepend t :empty-lines 1)
+          (function my/org-note-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("nq" "Quote" entry (file+headline ,my/org-notes-file "Quotes")
-          (function my/org-quote-template) :prepend t :empty-lines 1)
+          (function my/org-note-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("nv" "Insight" entry (file+headline ,my/org-notes-file "Insights")
-          (function my/org-note-template) :prepend t :empty-lines 1)
+          (function my/org-note-template)
+          :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("c" "Calendar")
         ("ce" "Event" entry (file+headline ,my/org-calendar-file "Events")
-         "* %^{日程名称}\n%^{日期与时间（可输入时间段）}T\n%?\n"
-         :prepend t :empty-lines 1)
+         "* %^{日程名称}\n%^{日期与时间（可输入时间段）}T\n%(my/org-capture-source-line)%?\n"
+         :prepend t :empty-lines-before 0 :empty-lines-after 1)
         ("j" "Journal")
         ("je" "Entry" plain (file+olp+datetree ,my/org-journal-file)
-         "%U\n%?\n" :empty-lines 1)))
+         "%U\n%(my/org-capture-source-line)%?\n"
+         :empty-lines-before 0 :empty-lines-after 1)))
 
 (defun my/org-capture ()
   "Open the grouped Org Capture menu and focus its editing buffer."
