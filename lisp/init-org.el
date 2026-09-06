@@ -80,6 +80,7 @@
                   "|" "DONE(d!)" "CANCELLED(c@/!)"))
       org-log-done 'time
       org-log-into-drawer t
+      org-ellipsis " ↪"
       org-tags-column 0
       org-blank-before-new-entry '((heading . t) (plain-list-item . nil))
       org-refile-targets `((,my/org-work-file :maxlevel . 3)
@@ -125,7 +126,7 @@
 
 (defun my/org-capture-created-line ()
   "Return the body line used for an entry's creation timestamp."
-  (concat "  " (my/org-created-at) "\n"))
+  (concat (my/org-created-at) "\n"))
 
 (defvar vertico-preselect)
 
@@ -149,7 +150,7 @@
   "Build the common task template."
   (concat "* TODO " (read-string "Title: ") (my/org-read-tags) "\n"
           (my/org-capture-created-line)
-          "\n  %?\n"))
+          "%?\n"))
 
 (defun my/org-project-template ()
   "Build a TODO or NEXT project, optionally with its first action."
@@ -163,7 +164,7 @@
       (setq first-action nil))
     (concat "* " state " " title (if first-action " [/]" "") tags "\n"
             (my/org-capture-created-line)
-            "\n  %?\n"
+            "%?\n"
             (if first-action (concat "** NEXT " first-action "\n") ""))))
 
 (defun my/org-note-template (&optional quote)
@@ -174,8 +175,8 @@
     (concat "* " title tags "\n"
             (my/org-capture-created-line)
             (if (string-empty-p (or source "")) ""
-              (concat "  Source: " source "\n"))
-            "\n  %?\n")))
+              (concat "Source: " source "\n"))
+            "%?\n")))
 
 (defun my/org-promote-creation-timestamp ()
   "Move the inactive timestamp at point into the current entry's CREATED property."
@@ -273,41 +274,42 @@
         (title (read-string "Title: ")))
     (concat "* " state " " title "\n"
             (my/org-read-checkboxes)
-            "\n  %?\n")))
+            "\n%?\n")))
 
 (setq org-capture-templates
       `(("i" "Inbox")
         ("it" "Task" entry (file+headline ,my/org-inbox-file "Tasks")
           (function my/org-task-template)
-          :prepend t)
+          :prepend t :empty-lines 1)
         ("in" "Thought" entry (file+headline ,my/org-inbox-file "Thoughts")
-          (function my/org-note-template) :prepend t)
+          (function my/org-note-template) :prepend t :empty-lines 1)
         ("w" "Work")
         ("wt" "Task" entry (file+headline ,my/org-work-file "Tasks")
-          (function my/org-task-template) :prepend t)
+          (function my/org-task-template) :prepend t :empty-lines 1)
         ("wp" "Project" entry (file+headline ,my/org-work-file "Projects")
-          (function my/org-project-template) :prepend t)
+          (function my/org-project-template) :prepend t :empty-lines 1)
         ("p" "Personal")
         ("pl" "Life" entry (file+headline ,my/org-personal-file "Life")
-          (function my/org-task-template) :prepend t)
+          (function my/org-task-template) :prepend t :empty-lines 1)
         ("pp" "Project" entry (file+headline ,my/org-personal-file "Projects")
-          (function my/org-project-template) :prepend t)
+          (function my/org-project-template) :prepend t :empty-lines 1)
         ("ps" "Someday" entry (file+headline ,my/org-personal-file "Someday")
-          (function my/org-task-template) :prepend t)
+          (function my/org-task-template) :prepend t :empty-lines 1)
         ("s" "Subtask for NEXT project" entry
          (function my/org-capture-next-project-target)
          (function my/org-project-subtask-template)
          :empty-lines 1)
         ("n" "Notes")
         ("ni" "Idea" entry (file+headline ,my/org-notes-file "Ideas")
-          (function my/org-note-template) :prepend t)
+          (function my/org-note-template) :prepend t :empty-lines 1)
         ("nq" "Quote" entry (file+headline ,my/org-notes-file "Quotes")
-          (function my/org-quote-template) :prepend t)
+          (function my/org-quote-template) :prepend t :empty-lines 1)
         ("nv" "Insight" entry (file+headline ,my/org-notes-file "Insights")
-          (function my/org-note-template) :prepend t)
+          (function my/org-note-template) :prepend t :empty-lines 1)
         ("c" "Calendar")
         ("ce" "Event" entry (file+headline ,my/org-calendar-file "Events")
-         "* %^{日程名称}\n  %^{日期与时间（可输入时间段）}T\n\n  %?\n" :prepend t)
+         "* %^{日程名称}\n%^{日期与时间（可输入时间段）}T\n%?\n"
+         :prepend t :empty-lines 1)
         ("j" "Journal")
         ("je" "Entry" plain (file+olp+datetree ,my/org-journal-file)
          "%U\n%?\n" :empty-lines 1)))
