@@ -170,14 +170,30 @@
   :ensure nil
   :hook (after-init . delete-selection-mode))
 
-;; 文件恢复：自动保存集中到配置目录，不在项目中留下临时文件。
+;; 文件恢复：自动保存应对崩溃，编号备份保留非 Git 文件的已保存历史。
 (defconst my/auto-save-directory
   (expand-file-name "auto-save/" user-emacs-directory))
+(defconst my/backup-directory
+  (expand-file-name "backups/" user-emacs-directory))
 (make-directory my/auto-save-directory t)
-(setq make-backup-files nil
-      auto-save-default t
+(make-directory my/backup-directory t)
+(setq auto-save-default t
+      auto-save-timeout 15
+      auto-save-interval 200
       auto-save-file-name-transforms
-      `((".*" ,my/auto-save-directory t)))
+      `((".*" ,my/auto-save-directory t))
+      auto-save-list-file-prefix
+      (expand-file-name ".saves-" my/auto-save-directory)
+      make-backup-files t
+      backup-directory-alist `(("." . ,my/backup-directory))
+      version-control t
+      kept-new-versions 10
+      kept-old-versions 5
+      delete-old-versions t
+      backup-by-copying t
+      backup-by-copying-when-linked t
+      ;; Git history already covers version-controlled files.
+      vc-make-backup-files nil)
 
 (provide 'init-editing)
 ;;; init-editing.el ends here
