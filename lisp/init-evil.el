@@ -135,8 +135,23 @@
   :init
   (global-evil-surround-mode 1))
 
+(defun my/comment-dwim ()
+  "Comment the visual region without including its trailing line boundary."
+  (interactive)
+  (if (and (bound-and-true-p evil-local-mode)
+           (evil-visual-state-p)
+           (region-active-p))
+      (let ((beginning (region-beginning))
+            (end (region-end)))
+        ;; Linewise Visual selections end at the following line's beginning.
+        (when (and (> end beginning)
+                   (save-excursion (goto-char end) (bolp)))
+          (setq end (1- end)))
+        (comment-or-uncomment-region beginning end))
+    (comment-line)))
+
 (use-package emacs
-  :bind* ("C-/" . comment-line))
+  :bind* ("C-/" . my/comment-dwim))
 
 
 ;;; esc quits
