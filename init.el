@@ -22,6 +22,7 @@
 (require 'init-elpa)      ; 镜像源与 use-package 设置
 (require 'init-remote)    ; Load upgraded TRAMP before recentf can load built-in TRAMP
 (require 'init-environment)
+(require 'init-performance)
 
 ;; GCMH 自动管理垃圾回收
 (when (require 'gcmh nil t)

@@ -1,242 +1,217 @@
 # Emacs Configuration
 
-面向 Emacs 30 的个人配置，优先使用 Emacs 内置功能，覆盖 Evil 编辑、项目开发、补全、文件管理、终端、远程开发和 Org 工作流。
+面向 Emacs 30.1 的个人配置：Evil 编辑、项目开发、中文输入和 Org 工作流。优先使用内置功能，输入时少干预，格式按需整理。
 
-## 前提
+按键记法：`C-` = Ctrl，`M-` = Alt/Meta，`S-` = Shift；空格表示依次按键，`/` 分隔可选操作。Buffer 是缓冲区，Window 是分屏，Frame 是整个 Emacs 窗口。
 
-- Emacs 30.1
-- 按需安装 `clangd`、`basedpyright`、`gopls`、`rust-analyzer` 等语言服务器
-- Linux、WSL 和 macOS 建议安装 `zsh` 或 `bash`
-- Tree-sitter grammar 通过 `M-x treesit-auto-install-all` 显式安装
-- 高速远程开发需要本机 OpenSSH、Git、SCP，以及可通过 SSH 登录的 Linux/macOS 目标
+## 插件与内置组件
 
-本机差异写入不提交的 `local.el`。可参考 `local.example.el` 设置包源、Org 目录、工具路径、Eat shell 和通知后端。
+| 功能 | 组件 | 用途 |
+| --- | --- | --- |
+| Vim 编辑 | Evil、Evil Collection | 普通/插入/可视状态，以及各模式的 Vim 按键 |
+| 批量编辑 | Evil Multiedit、Evil Surround、Move Text | 同步编辑匹配项、操作包围符、移动代码行 |
+| 搜索与选择 | Vertico、Orderless、Consult、Marginalia | 垂直候选、多关键词匹配、搜索及候选说明 |
+| 候选操作 | Embark、Wgrep | 对候选执行操作、编辑搜索结果 |
+| 代码补全 | Corfu、Cape、Yasnippet | 补全弹窗、文件/文本/关键词候选、代码模板 |
+| 开发工具（内置） | Eglot、Flymake、Project、Compilation | LSP、诊断、项目管理与编译 |
+| Git | Magit | 查看差异、暂存、提交等 Git 操作 |
+| 缩进与显示 | EditorConfig、Tree-sitter、Whitespace、Indent Bars、Rainbow Delimiters | 项目缩进规则、语法分析、空格点、作用域竖线和彩虹括号 |
+| 窗口与撤销 | Tab Line、Winner（内置）、Popper、Ace Window、Vundo | 标签、布局恢复、临时窗口、窗口选择、撤销历史 |
+| 文件管理 | Dired（内置）、Dired Subtree、Treemacs | 目录操作、展开子目录、项目侧栏 |
+| 终端与远程 | Eat、Eshell / TRAMP（内置）、tramp-rpc | 内置终端及 SSH 远程开发 |
+| 中文输入 | Pyim、Pyim Basedict | 小鹤双拼及基础词库 |
+| Org | Org / Agenda（内置）、Org Modern、Calfw、Cal China X | 任务捕获、日程、外观和日历 |
+| Lisp / Scheme | Paredit、Geiser Racket | 结构化编辑、Scheme REPL 与 SICP |
+| 界面与帮助 | Modus / Doric、Doom Modeline、Nerd Icons、Dashboard、Which Key、Helpful、Avy | 主题、状态栏、图标、首页、按键提示、帮助与跳转 |
+| 大文件保护（内置） | So Long | 对大文件和超长行关闭重型增强 |
+| 可选环境工具 | Exec Path from Shell、Envrc、GCMH | 已安装时导入 Shell 环境、支持 direnv、管理垃圾回收 |
 
-## 配置结构
+配置入口是 [init.el](init.el)，功能模块位于 [lisp/](lisp/)。搜索相关配置看 `init-enhance.el`，编辑看 `init-editing.el`，LSP 看 `init-lsp.el`，Org 看 `init-org.el`。
 
-| 模块 | 作用 |
+## 自定义操作
+
+### 编辑与补全
+
+以下 Enter/Tab 行为用于编程 Buffer 的 Evil **插入状态**；不替代 Org、Dired 等模式的专用按键。
+
+| 按键 | 行为 |
 | --- | --- |
-| `init-ui.el` / `init-window.el` | 主题、字体、Tab Line、窗口和弹窗 |
-| `init-enhance.el` / `init-completion.el` | Vertico、Consult、Embark、Corfu、Cape、Yasnippet |
-| `init-editing.el` / `init-treesitter.el` | 编辑行为、缩进、括号、Tree-sitter |
-| `init-project.el` / `init-lsp.el` | Project、Compilation、Magit、Eglot、Flymake |
-| `init-dired.el` / `init-treemacs.el` | 文件管理和项目文件树 |
-| `init-term.el` / `init-remote.el` | Eat、Eshell、TRAMP、tramp-rpc |
-| `init-evil.el` | Evil、窗口操作、多光标和撤销 |
-| `init-org.el` / `init-sicp.el` | Org 工作流、日历、Scheme 和 SICP |
+| `RET` | 换行并继承当前行缩进，不自动展开 `{}` |
+| `TAB` | 有 Corfu 候选时确认；否则推进到下一制表位 |
+| `C-M-\` | 选中代码后，按语言语法整理区域缩进 |
+| `S-TAB` | 在代码、LaTeX、Org 中展开模板或跳到下一模板字段 |
+| `C-/` | 注释/取消注释；Evil 可视选区不会多处理下一行 |
+| `s`（普通/可视状态） | 输入两个字符后用 Avy 跳转 |
+| `M-↑` / `M-↓`（代码） | 移动行或选区；Lisp 插入状态保留 Paredit 的按键 |
+| `C-c t c` | 开关 Corfu 补全弹窗，不影响 LSP |
+| `C-c t r` | 开关彩虹括号，默认关闭 |
+| `C-c t t` | 切换 Modus Vivendi 深色 / Doric Jade 浅色主题 |
+
+- 默认 Tab 插入**空格**；Makefile 或项目规则要求时才用真正的 Tab。不再猜测缩进，也不在保存时自动格式化。
+- `.editorconfig` 优先；C/C++ 默认 BSD 风格、4 空格。括号保留自动配对，Lisp 类模式由 Paredit 管理。
+- 空格显示为淡点，Tab 显示为箭头；竖线位置不叠加圆点。支持的 Tree-sitter 语言仅高亮当前作用域的对应深度，光标在行首空白中也按本行语句识别。
+
+### 标签、窗口与退出
+
+表中 Vim 按键用于 Evil 普通状态；`[b` / `]b`、数字标签跳转也支持 Motion 状态。
+
+| 按键 | 行为 |
+| --- | --- |
+| `[b` / `]b` | 按当前 Window 的标签顺序切换 Buffer |
+| `Ctrl+Shift+1..9` | 跳到当前 Window 的第 1–9 个标签，需终端/系统支持该组合键 |
+| `:q` / `ZQ` / `C-w q` | 关闭当前 Buffer，**不是退出 Emacs** |
+| `:wq` / `:x` / `ZZ` | 保存并关闭当前 Buffer；`:x` / `ZZ` 仅在修改后保存 |
+| `:qa` / `:wqa` | 退出 Emacs / 保存后退出 |
+| `C-w v` / `C-w s` | 固定向右 / 向下分屏 |
+| `C-w h/j/k/l` | 在窗口间移动 |
+| `C-w u` / `C-w C-r` | 撤销 / 重做窗口布局 |
+| `C-w o` / `M-o` | 用 Ace Window 选择窗口，**不是只保留当前窗口** |
+| `C-w c` | 关闭窗口但保留 Buffer，也可用来隐藏终端面板 |
+| `q` | 普通状态下，在 Popper 弹窗/侧边窗口中关闭窗口，在 Capture 中取消捕获；普通编辑区仍为录制宏。各模式的专用绑定优先 |
+
+每个 Window 单独保留标签序列，普通 Buffer 与 `*特殊 Buffer*` 分组显示。
+
+### 终端、弹窗与文件树
+
+```text
+C-`                首次打开终端；之后在终端和原编辑窗口之间切换焦点
+C-w t              切换终端面板在右侧 / 底部（普通状态，仅图形界面）
+C-c `              显示/隐藏最近的 Popper 弹窗
+M-`                循环切换 Popper 弹窗
+C-M-`              切换当前窗口是否由 Popper 管理
+C-e                在编辑区与 Treemacs 间切换，未打开时显示当前项目（普通状态）
+```
+
+图形界面的终端默认在右侧，终端界面中在底部。终端快捷键**不负责隐藏终端**，且复用同一终端 Buffer，不按项目/主机自动新建。Linux、WSL、macOS 用 Eat，原生 Windows 用 Eshell。
+
+Treemacs 内：`h` 根目录上移，`l` 将目录设为根或打开文件，`H` 切换隐藏文件，`a/r/c/d` 新建/重命名/复制/删除，`\` 关闭侧栏。
+
+### 项目编译
+
+```text
+C-c b c            保存修改后，在项目根选择编译命令
+C-c b r            保存修改后，重复当前项目上次编译；没有记录时询问命令
+```
+
+这两个命令会不经确认保存可自动保存的已修改文件 Buffer，范围不限于当前项目；编译输出由 Popper 管理。
 
 ## 常用操作
 
-### 搜索、补全与帮助
+### 搜索、文件与帮助
 
 ```text
-C-s                搜索当前 Buffer
-M-s r              使用 ripgrep 搜索项目或目录
-C-x b              搜索并切换 Buffer
+C-x C-f / C-x C-s  打开 / 保存文件
+C-x b / C-x k      搜索切换 / 选择关闭 Buffer
+C-SPC              设置标记，再移动光标选择区域（插入状态）
+C-s                搜索当前 Buffer（Minibuffer 中为普通增量搜索）
+M-s r              ripgrep 搜索项目/目录，预填选区或光标处符号
 C-c r              打开最近文件
-C-SPC              开始或取消选择区域
-M-TAB / C-M-i      手动触发光标处补全
-C-. / M-.          在 Minibuffer 中显示候选操作 / 执行默认操作
-C-h f/v/k          查看函数、变量或按键帮助
-C-h B              查看当前可用按键
-S-TAB              在代码、LaTeX、Org 中展开 Yasnippet 或跳到下一字段
+M-y                从 kill-ring 中选择粘贴内容
+C-. / M-.          Embark 候选操作 / 默认操作
+C-h f / C-h v      函数 / 变量帮助
+C-h k / C-h B      按键帮助 / 当前可用按键
+C-\ / M-j          切换小鹤双拼 / 转换光标前的拼音
 ```
 
-### 编辑、撤销与跳转
+### 补全、诊断与跳转
+
+代码导航的 `g d`、`g r`、`g h`、`K` 使用 Evil 普通状态；LSP 功能需要对应语言服务器。
 
 ```text
-u / C-r            Evil 撤销 / 重做
-C-x u              打开 Vundo 可视化撤销历史
-C-/                注释或取消注释当前行
-s                  输入两个字符后使用 Avy 跳转
-M-↑ / M-↓          移动当前代码行或选区
-M-d / M-D          添加下一个 / 上一个相同文本到多光标
-C-g                退出多光标会话
-ys{motion}{char}   添加包围符号，例如 ysiw)
-cs{old}{new}       修改包围符号
-ds{char}           删除包围符号
-```
-
-Vundo 用于查看分叉的撤销历史；日常 `u`/`C-r` 使用内置 undo-redo 后端。
-
-### Buffer、Tab 与窗口
-
-```text
-[b / ]b            切换当前 Window 的 Tab
-Ctrl+Shift+1..9    跳转到当前 Window 的第 1 到第 9 个 Tab
-C-x k              关闭当前 Buffer
-:q / :wq / :x      关闭 / 保存并关闭当前 Buffer
-:qa / :wqa         退出 Emacs / 保存后退出
-C-w v / C-w s      向右 / 向下分屏
-C-w h/j/k/l        在 Window 间移动
-C-w u / C-w C-r    撤销 / 重做窗口布局
-C-w o 或 M-o       使用 Ace Window 选择窗口
-```
-
-帮助、编译、诊断和终端等临时 Buffer 由 Popper 管理：
-
-所有 Popper 弹窗和 `C-\`` 打开的 Eat/Eshell 底部终端占当前 Frame 约三分之一高度。
-
-```text
-C-c `              显示或隐藏最近的弹窗
-M-`                在弹窗间循环
-C-M-`              切换当前窗口是否由 Popper 管理
-q                  关闭当前临时窗口
-```
-
-### 项目、编译与 Git
-
-```text
-C-c p f            在当前项目查找文件
-C-c p p            切换项目
-C-c p b            切换当前项目 Buffer
-C-c p D            在项目根打开 Dired
-C-c p e            在项目根打开 Eshell
-C-c b c            保存文件并选择项目编译命令
-C-c b r            保存文件并重复当前项目上次编译
-M-g n / M-g p      下一个 / 上一个编译错误
-M-!                在当前目录执行 Shell 命令
-C-x g              打开 Magit Status
-```
-
-内置 Project 默认把 Git、Hg、SVN 等版本控制仓库根目录视为项目。编译输出由 Compilation Mode 和 Popper 管理，可直接跳到错误位置。
-
-### 代码补全与 LSP
-
-```text
-C-c t c            开关 Corfu 自动补全
-C-n/C-p，TAB       选择上/下一个候选，确认当前候选
-C-c t r            开关彩虹括号（默认关闭）
+M-TAB / C-M-i      手动触发补全
+C-n / C-p          补全弹窗中选择下一个 / 上一个候选
+TAB / M-RET        确认补全；RET 仍用于换行
 g d / g r          跳到定义 / 查找引用
 M-, / C-M-,        Xref 历史后退 / 前进
-g h                显示光标处悬浮文档
-K                  在回显区显示简要文档
-C-c l r/a/f        重命名 / Code Action / 格式化 Buffer
+g h / K            悬浮文档 / 回显区简要文档
+C-c l r            重命名
+C-c l a / C-c l f  Code Action / 手动格式化 Buffer
 M-n / M-p          下一个 / 上一个 Flymake 诊断
 ```
 
-Eglot 只在配置过的语言 Buffer 中启动；关闭 Corfu 不会关闭 LSP、诊断或跳转。
-
-### Dired 与 Treemacs
+### 项目、Git 与文件管理
 
 ```text
-C-x d              打开 Dired
-C-x C-j            打开当前文件所在目录并定位文件
-RET / gf            打开文件或目录
-- / ^               返回上级目录
-m / u / U           标记 / 取消 / 清除标记
-C / R / D           复制 / 移动 / 立即删除
-i                   进入 Wdired 批量重命名
-TAB                 展开或收起 Dired 子目录
+C-c p p            切换项目
+C-c p f / C-c p b  查找项目文件 / 切换项目 Buffer
+C-c p D / C-c p e  在项目根打开 Dired / Eshell
+C-x g              Magit Status
+M-g n / M-g p      下一个 / 上一个编译错误
+M-!                在当前目录执行 Shell 命令
+C-x d / C-x C-j    打开 Dired / 定位当前文件所在目录
 ```
+
+Dired 内：`RET` / `g f` 打开，`-` / `^` 上一级，`m/u/U` 标记/取消/清除标记，`C/R/D` 复制/移动/删除，`TAB` 展开子目录，`i` 进入 Wdired 批量重命名。
+
+### Evil 常用编辑
 
 ```text
-C-e                 在编辑区与 Treemacs 之间切换
-h / l               根目录上移 / 进入目录或打开文件
-H                   显示或隐藏隐藏文件
-a / r / c / d       新建 / 重命名 / 复制 / 删除
-\                   关闭 Treemacs 侧栏
+i / a / Esc        插入 / 光标后插入 / 返回普通状态
+v / V / C-v        字符 / 行 / 矩形可视选区
+u / C-r            撤销 / 重做（内置 undo-redo 后端）
+C-x u              Vundo 可视化撤销历史
+M-d / M-D          普通/可视状态添加下一个 / 上一个匹配项到同步编辑
+C-g                退出同步编辑
+ysiw)              为当前单词添加括号
+cs"' / ds"         将双引号改成单引号 / 删除双引号
 ```
-
-### 终端、中文输入与主题
-
-```text
-C-`                打开或关闭底部终端
-C-\                切换 Pyim 小鹤双拼
-M-j                转换光标前的拼音
-C-c t t            在 Modus Vivendi 深色与 Doric Jade 浅色主题间切换
-```
-
-Linux、WSL 和 macOS 使用 Eat；原生 Windows 使用 Eshell。Pyim、Eshell 和 SICP/Geiser 都在首次使用时加载。
 
 ## Org 工作流
 
-```text
-C-c c              打开 Capture 菜单
-C-c a              打开 Agenda 菜单
-C-c o              搜索并打开 Org 文件或 Org 目录
-C-c C              打开可视日历
-C-c l              保存 Org Link
-C-c C-t            切换 TODO 状态
-C-c C-s / C-c C-d  设置计划日期 / 截止日期
-C-c C-w            Refile
-C-c C-x C-s        归档当前任务或项目
-C-c C-x p          设置 Property，自动创建 Property Drawer
-C-c C-x C-k        将光标处的创建时间移入 CREATED Property
-```
+默认文件位于 `~/org/`，Windows 为 `%USERPROFILE%/org/`；首次 Capture/Agenda 会询问是否初始化缺少的文件。
 
-常用 Capture：
+### 入口与自定义操作
 
 ```text
-i t / i n          Inbox Task / Thought
-w t / w p          Work Task / Project
-p l / p p / p s    Personal Life / Project / Someday
-s                  Add subtask to a Work/Personal NEXT project
-n i / n q / n v    Note Idea / Quote / Insight
-c e / j e          Calendar Event / Journal Entry
+C-c c / C-c a      Capture / Agenda 菜单
+C-c o / C-c C      搜索 Org 文件或打开目录 / 打开可视日历
+C-c C-x C-k        将光标处的创建时间转入 CREATED Property
+C-c l              保存 Org Link（LSP Buffer 中同此前缀用于 LSP 操作）
 ```
 
-常用 Agenda：
+Capture 菜单中依次按键，例如 `i t`：
 
-```text
-d / i / p          今日与 NEXT / Inbox / 工作和个人任务回顾
-w / o              本周 / 本月
-j / k              移动选择
-RET / TAB           打开源位置 / 在另一 Window 显示源位置
-t / s / C-c C-d    修改 TODO / 计划日期 / 截止日期
-a / r / q           归档 / 刷新 / 退出
-```
+| 按键 | 内容 |
+| --- | --- |
+| `i t` / `i n` | 收件箱任务 / 想法 |
+| `w t` / `w p` | 工作任务 / 项目 |
+| `p l` / `p p` / `p s` | 个人生活任务 / 项目 / Someday |
+| `s` | 为工作或个人的 NEXT 项目添加子任务 |
+| `n i` / `n q` / `n v` | 笔记：想法 / 引用 / 洞见 |
+| `c e` / `j e` | 日程 / 日志 |
 
-Org 文件默认位于 `~/org/`，Windows 位于 `%USERPROFILE%/org/`。首次调用 Capture/Agenda 时若缺少工作流文件会询问是否初始化。Agenda 读取 Inbox、Work、Personal 和 Calendar；Journal 不进入 Agenda。首次打开 Org Buffer 或调用 Capture/Agenda 后启动提醒，要求 Emacs 保持运行且时间戳包含具体时间。
+Capture 中 `C-c C-c` 保存，`C-c C-k` 取消。任务、项目和笔记的创建时间默认放在正文，不创建 Property Drawer。
 
-重要注意事项：
+Agenda 菜单：`d` 今日与 NEXT，`i` 收件箱，`p` 工作/个人回顾，`w/o` 本周/本月，`f` 笔记中的未来想法。
 
-- Capture 用 `C-c C-c` 保存、`C-c C-k` 取消；Agenda 是只读面板，应按 `RET` 回源文件编辑。
-- Task、Project 和 Note Capture 将创建时间写在标题下的正文首行，不默认创建 Property Drawer；Quote 的来源写为正文中的 `Source:` 行。需要 Drawer 时，将光标放在该时间上按 `C-c C-x C-k`，会创建 `CREATED` Property 并删除正文中的原时间。
-- Refile 应选择带标题的目标，例如 `work.org/Tasks`，不要选择文件根。
-- 手机同步应落到本机 Org 目录，不建议让 Agenda 直接操作 WebDAV TRAMP 路径。
-- Windows 仅对同步 Org 文件每 5 秒轮询；未修改的 Buffer 才会自动重载。
+### Agenda、日历与任务编辑
 
-可视日历中使用 `h/j/k/l` 移动，`v d/w/m` 切换日、周、月视图，`SPC` 打开当日 Agenda，`RET` 打开事项，`q` 退出。
+- **Agenda 内**：`j/k` 移动，`h/l` 前后日期，`g t` 今天，`g j` 指定日期；`RET` 打开源位置，`TAB` 在另一窗口显示；`t/s/C-c C-d` 修改状态/计划/截止日期，`a/r/q` 归档/刷新/退出。
+- **可视日历内**：`h/j/k/l` 移动，`v d` / `v w` / `v m` 切换日/周/月，`SPC` 打开当天 Agenda，`RET` 打开事项，`r/q` 刷新/退出。
+- **Org 文件内**：`C-c C-t` 切换 TODO，`C-c C-s` / `C-c C-d` 设置计划/截止日期，`C-c C-w` Refile，`C-c C-x C-s` 归档，`C-c C-x p` 设置 Property。
 
-## 远程开发
+Agenda 读取 Inbox、Work、Personal、Calendar；编辑正文请回源文件。Refile 选择带标题的目标，如 `work.org/Tasks`。日程提醒在首次使用 Org 后启动，需要时间戳包含具体时间且 Emacs 保持运行。手机同步请落到本机 Org 目录。
 
-```text
-C-x C-f
-/rpc:user@host:/path/to/project
-```
+## 环境与本机设置
 
-`tramp-rpc` 通过 SSH 访问 x86_64/aarch64 Linux 或 macOS 远端，支持远程文件、Eglot、Magit、编译和终端。首次连接需要访问 GitHub 下载 server，并写入远端用户缓存目录；失败时可改用 `/ssh:user@host:/path` 排查。终端快捷键 `C-\`` 复用同一个 Eat Buffer，多项目或多主机之间不会自动创建独立终端。
+- 使用 Emacs 30.1，安装 Git、`rg`；按需安装 `clangd`、`basedpyright`、`gopls`、`rust-analyzer` 等语言服务器。
+- Tree-sitter grammar 用 `M-x treesit-auto-install-all` 安装；与平台和 ABI 绑定，不要跨机器同步 `tree-sitter/`。
+- 本机差异放入不提交的 `local.el`，参考 [local.example.el](local.example.el) 设置包源、工具路径、Org 目录和 Shell。
+- GUI 的中文和图标需要对应字体；TTY 没有额外的系统剪贴板桥接。
 
-Windows Emacs 也可以把 WSL 当作 SSH 远端：在 WSL 中安装并启动 `openssh-server`，并配置 Windows 到 WSL 的 SSH 公钥登录。先在 PowerShell 确认以下命令无需密码且输出 Linux 信息：
+### 远程开发
 
-```powershell
-ssh -o BatchMode=yes <WSL用户名>@localhost "uname -a"
-```
+`C-x C-f` 输入 `/rpc:user@host:/path/to/project`；异常时可用 `/ssh:user@host:/path` 排查。请替换用户名、主机和路径。
 
-然后访问（尖括号内容必须替换，`user` 不是固定用户名）：
+- 本机需要 OpenSSH、Git、SCP；远端为支持的 x86_64/aarch64 Linux 或 macOS。首次 RPC 连接需从 GitHub 下载 server。
+- 语言服务器和编译工具装在远端；远程 clangd 不携带本机 `g++` 路径，本地 Unix 才按需设置 `--query-driver`。
+- Windows 连接 WSL：先在 WSL 启动 SSH 服务并配置公钥登录，再访问 `/rpc:user@localhost:/home/user/project`。非默认端口写作 `host#端口`。
 
-```text
-/rpc:<WSL用户名>@localhost:/home/<WSL用户名>/project
-```
+### 大文件保护与维护
 
-这与 VS Code Remote WSL 的目标接近，但运行模型不同：Emacs 本体和界面仍在 Windows，文件操作和开发进程通过 TRAMP 在 WSL 执行。WSL2 的 `localhost` 转发通常可直接使用；若 SSH 端口不是 22，可写 `localhost#端口`。当前配置会优先加载外部 TRAMP 2.8.2，并在 Windows 关闭 SSH ControlMaster。使用不存在的用户名时，TRAMP 可能在文件名补全阶段等待认证，看起来像输入路径时卡住。
+达到约 **2 MiB**，或单行超过 **10,000 字节**时启用轻量模式：保留语言模式和编辑能力，关闭较重的显示/补全增强，并跳过自动 LSP（包括加入已有项目服务器）。检测只读取内存文本，不卸载解析器。
 
-## 关键踩坑
-
-- Tree-sitter grammar 与操作系统、CPU 和 Emacs ABI 绑定，不要跨机器同步 `tree-sitter/`。Emacs 30.1 的 C grammar 固定到兼容 ABI 的版本。
-- `.editorconfig` 优先决定缩进；C/C++ 没有规则时固定使用 4 空格，避免续行让 dtrt-indent 误判为 2。其他语言没有明确规则时才在打开文件时推断宽度和 Tab 风格。
-- 文本和代码 Buffer 使用 Visual Line 按窗口宽度折行，不修改文件内容；缩进线使用 indent-bars，并强调光标所在的缩进深度。
-- 编程语言输入时不根据未完成的语法树自动重排：`RET` 使用语言模式的标准换行缩进，`TAB` 仅插入空格至下一个缩进位置，不触发补全。C/C++ 在 `{}` 中按 `RET` 会额外创建一个缩进的代码块；需要整理完整代码时选中区域执行 `M-x indent-region`。
-- 原生 Windows 的 MSYS GPG 可能错误处理盘符路径。配置已让 GPG 使用默认 home；不要长期关闭包签名验证。
-- TTY、SSH 和 WSL 终端没有额外系统剪贴板桥接，默认只操作 Emacs kill-ring。
-
-## 启动分析
-
-默认不记录逐个 `require` 的耗时。需要分析时，在 `early-init.el` 设置：
-
-```elisp
-(setq my/enable-startup-benchmarking t)
-```
-
-启动后执行 `M-x sanityinc/require-times`。
+- `M-x so-long-revert`：恢复被关闭的显示功能。
+- 阈值可在 `local.el` 设置 `my/large-file-size-threshold`、`so-long-threshold`（字节）。
+- 修改配置后建议重启 Emacs，避免旧 Hook/按键残留。
+- 启动分析：在 `early-init.el` 设置 `(setq my/enable-startup-benchmarking t)`，重启后执行 `M-x sanityinc/require-times`。

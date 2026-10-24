@@ -6,6 +6,7 @@
 
 ;; 基础编辑行为
 (electric-pair-mode t)
+(setq electric-pair-open-newline-between-pairs nil)
 (defun my/disable-electric-pair-in-minibuffer ()
   "在 minibuffer 中关闭成对括号补全。"
   (electric-pair-local-mode -1))
@@ -19,19 +20,23 @@
 
 ;; 缩进与 Tab
 (use-package editorconfig
-  :ensure t
+  :ensure nil
   :config
   (editorconfig-mode 1))
 
 (setq-default indent-tabs-mode nil
               tab-width 4
               standard-indent 4
-              c-basic-offset 4
-              c++-basic-offset 4)
+              c-basic-offset 4)
+(with-eval-after-load 'cc-mode
+  (setf (alist-get 'c-mode c-default-style) "bsd"
+        (alist-get 'c++-mode c-default-style) "bsd"))
+(setq c-ts-mode-indent-style 'bsd
+      c-ts-mode-indent-offset 4)
 (setq tab-always-indent 'complete)
 
-(defun my/insert-spaces-to-tab-stop ()
-  "Confirm an active Corfu candidate, or insert spaces to the next tab stop."
+(defun my/tab-or-complete ()
+  "Confirm an active Corfu candidate, or advance to the next tab stop."
   (interactive)
   ;; Evil's Insert-state map takes precedence over Corfu's popup map.
   (if (and (bound-and-true-p completion-in-region-mode)
@@ -39,115 +44,133 @@
            corfu--candidates
            (fboundp 'corfu-insert))
       (corfu-insert)
-    (let ((indent-tabs-mode nil))
-      (tab-to-tab-stop))))
+    (tab-to-tab-stop)))
 
-(defun my/setup-basic-prog-indentation ()
-  "Use lightweight newline and space-only tab behavior in programming modes."
-  (unless (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
-    (electric-indent-local-mode -1)
-    (local-set-key (kbd "RET") #'newline-and-indent)
-    (local-set-key (kbd "TAB") #'my/insert-spaces-to-tab-stop)
-    (local-set-key (kbd "<tab>") #'my/insert-spaces-to-tab-stop)))
+(defun my/newline-with-inherited-indent (&optional count)
+  "Insert COUNT newlines and inherit the current line's indentation."
+  (interactive "*p")
+  (let ((indent (current-indentation))
+        (electric-indent-mode nil)
+        (electric-pair-open-newline-between-pairs nil))
+    (newline count)
+    (indent-to indent)))
 
-(add-hook 'prog-mode-hook #'my/setup-basic-prog-indentation)
-
-(defun my/c-like-newline-and-indent ()
-  "Insert and indent a C/C++ newline, expanding an empty brace pair."
-  (interactive)
-  (if (and (eq (char-before) ?\{)
-           (eq (char-after) ?\}))
-      (let ((indent (current-indentation)))
-        (newline)
-        (indent-to (+ indent (my/c-like-indent-offset)))
-        (save-excursion
-          (newline)
-          (indent-to indent)))
-    (newline-and-indent)))
-
-(defun my/c-like-indent-offset ()
-  "Return the effective C/C++ indentation width for this buffer."
-  tab-width)
-
-(defun my/sync-c-like-indent-width ()
-  "Use the buffer's configured tab width for C/C++ syntax indentation."
-  (when (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
-    (setq-local c-basic-offset tab-width)
-    (when (derived-mode-p 'c-ts-mode 'c++-ts-mode)
-      (setq-local c-ts-mode-indent-offset tab-width))))
-
-(defun my/c-like-tab-to-tab-stop ()
-  "Indent forward to the next C/C++ indentation stop."
-  (interactive)
-  (my/insert-spaces-to-tab-stop))
-
-(defun my/setup-flexible-c-like-editing ()
-  "Use lightweight, predictable indentation while typing C/C++."
-  (my/sync-c-like-indent-width)
-  (electric-indent-local-mode -1)
-  (local-set-key (kbd "RET") #'my/c-like-newline-and-indent)
-  (local-set-key (kbd "TAB") #'my/c-like-tab-to-tab-stop)
-  (local-set-key (kbd "<tab>") #'my/c-like-tab-to-tab-stop)
+(defun my/setup-prog-indentation ()
+  "Use predictable manual indentation while keeping native region indentation."
+  (local-set-key (kbd "RET") #'my/newline-with-inherited-indent)
+  (local-set-key (kbd "TAB") #'my/tab-or-complete)
+  (local-set-key (kbd "<tab>") #'my/tab-or-complete)
   (when (fboundp 'evil-local-set-key)
-    (evil-local-set-key 'insert (kbd "RET") #'my/c-like-newline-and-indent)
-    (evil-local-set-key 'insert (kbd "TAB") #'my/c-like-tab-to-tab-stop)
-    (evil-local-set-key 'insert (kbd "<tab>") #'my/c-like-tab-to-tab-stop)))
+    (evil-local-set-key 'insert (kbd "RET") #'my/newline-with-inherited-indent)
+    (evil-local-set-key 'insert (kbd "TAB") #'my/tab-or-complete)
+    (evil-local-set-key 'insert (kbd "<tab>") #'my/tab-or-complete)))
 
-(add-hook 'c++-ts-mode-hook #'my/setup-flexible-c-like-editing)
-(add-hook 'c-ts-mode-hook #'my/setup-flexible-c-like-editing)
-(add-hook 'c++-mode-hook #'my/setup-flexible-c-like-editing)
-(add-hook 'c-mode-hook #'my/setup-flexible-c-like-editing)
-(add-hook 'hack-local-variables-hook #'my/sync-c-like-indent-width 80)
+(add-hook 'prog-mode-hook #'my/setup-prog-indentation)
 
-(defun my/dtrt-indent-maybe-enable ()
-  "Detect indentation where the language does not have a stable default."
-  (when (and buffer-file-name
-             (derived-mode-p 'prog-mode 'text-mode))
-    (let ((properties
-           (editorconfig-call-get-properties-function buffer-file-name)))
-      (setq-local dtrt-indent-explicit-offset
-                  (and (gethash 'indent_size properties) t)
-                  dtrt-indent-explicit-tab-mode
-                  (and (gethash 'indent_style properties) t)))
-    ;; C/C++ continuation lines frequently make heuristic detection mistake
-    ;; two spaces for the basic offset.  Use EditorConfig or the 4-space
-    ;; defaults above instead.
-    (unless (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
-      (dtrt-indent-mode 1))))
+;; Traditional CC Mode has its own electric commands, independent of
+;; Electric Indent.  Disable those without changing manual syntax indentation.
+(defun my/disable-c-electric-editing ()
+  "Disable automatic CC Mode indentation and keyword expansion."
+  (c-toggle-electric-state -1)
+  (abbrev-mode -1))
 
-(use-package dtrt-indent
-  :ensure t
-  :diminish
-  :hook (hack-local-variables . my/dtrt-indent-maybe-enable)
+(add-hook 'c-mode-common-hook #'my/disable-c-electric-editing)
+
+;; Display only: dots for spaces and arrows for real tabs, without changing text.
+(defun my/dim-whitespace-space (&rest _)
+  "Blend space markers toward the current theme's background."
+  (require 'color)
+  (let ((foreground (color-name-to-rgb (face-foreground 'shadow nil t)))
+        (background (color-name-to-rgb (face-background 'default nil t))))
+    (when (and foreground background)
+      (set-face-attribute
+       'whitespace-space nil
+       :foreground
+       (apply #'color-rgb-to-hex
+              (cl-mapcar (lambda (fg bg) (+ (* 0.25 fg) (* 0.75 bg)))
+                         foreground background))
+       :background 'unspecified))))
+
+(use-package whitespace
+  :ensure nil
+  :hook (prog-mode . whitespace-mode)
+  :custom
+  (whitespace-style '(face spaces tabs space-mark tab-mark))
+  :custom-face
+  (whitespace-space ((t (:inherit shadow :foreground unspecified :background unspecified))))
+  (whitespace-tab ((t (:inherit shadow :foreground unspecified :background unspecified))))
   :config
-  (setq dtrt-indent-verbosity 0))
+  (my/dim-whitespace-space)
+  (advice-add 'my/load-theme :after #'my/dim-whitespace-space))
 
 (defun my/indent-bars-maybe-enable ()
   "Enable indentation bars after the buffer's indentation is settled."
   (when (derived-mode-p 'prog-mode)
     (indent-bars-mode 1)))
 
+(defun my/indent-bars-scope-at-cursor (original buffer)
+  "Query the cursor's character, using the first token for leading whitespace."
+  ;; indent-bars 1.0 queries [point-1, point], which selects the enclosing
+  ;; block on the first letter of a statement.  Shift only its query point;
+  ;; leave the user's cursor and buffer contents untouched.
+  (with-current-buffer buffer
+    (save-excursion
+      (when (<= (current-column) (current-indentation))
+        (back-to-indentation))
+      (unless (eobp) (forward-char 1))
+      (funcall original buffer))))
+
+(with-eval-after-load 'indent-bars-ts
+  (advice-add 'indent-bars-ts--update-scope1 :around
+              #'my/indent-bars-scope-at-cursor))
+
 (use-package indent-bars
   :ensure t
   :commands indent-bars-mode
   :diminish
   :init
-  ;; Run after EditorConfig, file-local variables and dtrt-indent.
+  ;; Run after EditorConfig and file-local variables.
   (add-hook 'hack-local-variables-hook
             #'my/indent-bars-maybe-enable 90)
   :custom
+  ;; Character bars replace the space glyph, avoiding colored whitespace
+  ;; dots superimposed on graphical stipple bars.
+  (indent-bars-prefer-character t)
   (indent-bars-color '(font-lock-comment-face :blend 0.45))
   (indent-bars-color-by-depth nil)
   (indent-bars-width-frac 0.18)
   (indent-bars-pad-frac 0.15)
   (indent-bars-pattern ".")
   (indent-bars-display-on-blank-lines t)
-  (indent-bars-highlight-current-depth
-   '(:face font-lock-keyword-face :blend 1.0 :width 0.18))
+  ;; Without a syntax scope, keep ordinary bars rather than highlighting
+  ;; every unrelated block at the same depth throughout the buffer.
+  (indent-bars-highlight-current-depth nil)
   (indent-bars-treesit-support t)
-  ;; Tree-sitter still improves blank-line and wrapping behavior, but depth
-  ;; highlighting avoids coloring every nested bar in the current scope.
-  (indent-bars-treesit-scope nil))
+  (indent-bars-ts-styling-scope 'in-scope)
+  (indent-bars-ts-color '(inherit unspecified))
+  (indent-bars-ts-highlight-current-depth
+   '(no-inherit :face font-lock-keyword-face :blend 1.0 :width 0.18))
+  (indent-bars-treesit-scope-min-lines 2)
+  (indent-bars-treesit-scope
+    '((c compound_statement for_statement while_statement do_statement
+         if_statement switch_statement)
+      (cpp compound_statement for_statement for_range_loop while_statement
+           do_statement if_statement switch_statement try_statement catch_clause)
+      (python block for_statement while_statement if_statement
+              with_statement try_statement)
+      (rust block for_expression while_expression loop_expression
+            if_expression match_expression)
+      (javascript statement_block for_statement for_in_statement
+                  while_statement do_statement if_statement switch_statement
+                  try_statement catch_clause)
+      (typescript statement_block for_statement for_in_statement
+                  while_statement do_statement if_statement switch_statement
+                  try_statement catch_clause)
+      (tsx statement_block for_statement for_in_statement
+           while_statement do_statement if_statement switch_statement
+           try_statement catch_clause)
+      (go block for_statement if_statement expression_switch_statement
+          type_switch_statement select_statement))))
 
 (use-package move-text
   :ensure t
