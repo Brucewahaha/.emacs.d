@@ -6,7 +6,6 @@
   :hook (after-init . global-corfu-mode)
   :bind (("C-c t c" . global-corfu-mode)
          :map corfu-map
-               ("SPC" . corfu-insert-separator)
                ("M-q" . corfu-quick-complete)
                ("C-n" . corfu-next)
                ("C-p" . corfu-previous)
@@ -17,13 +16,11 @@
               ("S-TAB" . corfu-previous)
               ([backtab] . corfu-previous))
   :config
-  (setq completion-cycle-threshold 0)
-
   (defun my/corfu-use-basic-completion ()
-    "在编辑区使用开销较低的前缀匹配。"
-    (setq-local completion-styles '(basic)
-                completion-category-overrides nil
-                completion-category-defaults nil))
+    "在编辑区使用开销较低的前缀匹配。
+保留补全类别的默认样式：Eglot 依赖它直接使用语言服务器已过滤的结果，
+否则模糊、驼峰匹配的候选会被前缀匹配再次过滤掉。"
+    (setq-local completion-styles '(basic)))
   (add-hook 'corfu-mode-hook #'my/corfu-use-basic-completion)
 
   (add-hook 'eshell-mode-hook
@@ -34,15 +31,19 @@
   (global-corfu-minibuffer nil)
   (corfu-cycle t)
   (corfu-auto t)
-  (corfu-auto-delay 0.1)
+  (corfu-auto-delay 0.2)
   (corfu-auto-prefix 2)
   (corfu-preselect 'first)
   (corfu-preview-current nil))
 
-(remove-hook 'completion-at-point-functions #'ispell-completion-at-point)
+;; Text modes add ispell word completion buffer-locally; keep it out of Corfu.
+(setq text-mode-ispell-word-completion nil)
 
 (use-package cape
   :ensure t
+  :custom
+  ;; Keep fallback word completion bounded even with many source files open.
+  (cape-dabbrev-buffer-function #'current-buffer)
   :init
   ;; `completion-at-point-functions' may become buffer-local.  Updating its
   ;; default hook ensures buffers created after startup inherit Cape.
@@ -51,12 +52,10 @@
 
 (use-package yasnippet
   :ensure t
-  :diminish yas-minor-mode
   :hook ((after-init . yas-reload-all)
          ((prog-mode LaTeX-mode org-mode) . yas-minor-mode))
   :bind (:map yas-minor-mode-map
               ("TAB" . nil)
-              ("<tab>" . nil)
               ([tab] . nil)
               ("S-TAB" . smarter-yas-expand-next-field)
               ([backtab] . smarter-yas-expand-next-field))

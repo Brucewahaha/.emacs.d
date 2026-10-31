@@ -4,12 +4,9 @@
 ;; 基础行为
 (use-package dired
   :ensure nil
-  :bind ("C-x C-j" . dired-jump)
+  :defer t
   :config
-  (require 'dired-x)
   (setq dired-recursive-copies 'always
-        dired-recursive-deletes 'top
-        dired-omit-files "^\\..+"
         dired-auto-revert-buffer t
         dired-dwim-target t
         dired-kill-when-opening-new-dired-buffer t

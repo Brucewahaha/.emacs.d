@@ -134,6 +134,22 @@
     (if (string-empty-p source) ""
       (concat "Source: " source "\n"))))
 
+(defconst my/org-capture-placeholder-regexp
+  "\\(\\\\*\\)\\(%\\(?:\\[.+\\]\\|(\\|:[-A-Za-z]\\|<[^>\n]+>\\|[aAcfFikKlLntTuUx^]\\|\\\\[1-9]\\)\\)"
+  "Backslashes and a following `%' sequence that Org Capture would expand.")
+
+(defun my/org-capture-quote (text)
+  "Escape TEXT so a function capture template inserts it literally.
+Org expands placeholders after the template function returns, so typed text
+such as \"%t\" or a URL containing \"%A0\" would otherwise be replaced.
+Only sequences Org recognizes are escaped; a lone \"%\" stays as typed."
+  (replace-regexp-in-string
+   my/org-capture-placeholder-regexp
+   (lambda (match)
+     (let ((slashes (match-string 1 match)))
+       (concat slashes slashes "\\" (match-string 2 match))))
+   text t t))
+
 (defvar vertico-preselect)
 
 (defun my/org-read-tags ()
@@ -154,9 +170,10 @@
 
 (defun my/org-task-template ()
   "Build the common task template."
-  (concat "* TODO " (read-string "Title: ") (my/org-read-tags) "\n"
+  (concat "* TODO " (my/org-capture-quote (read-string "Title: "))
+          (my/org-read-tags) "\n"
           (my/org-capture-created-line)
-          (my/org-capture-source-line)
+          (my/org-capture-quote (my/org-capture-source-line))
           "%?\n"))
 
 (defun my/org-project-template ()
@@ -169,19 +186,22 @@
                              (read-string "First next action (empty to skip): ")))))
     (when (string-empty-p (or first-action ""))
       (setq first-action nil))
-    (concat "* " state " " title (if first-action " [/]" "") tags "\n"
+    (concat "* " state " " (my/org-capture-quote title)
+            (if first-action " [/]" "") tags "\n"
             (my/org-capture-created-line)
-            (my/org-capture-source-line)
+            (my/org-capture-quote (my/org-capture-source-line))
             "%?\n"
-            (if first-action (concat "** NEXT " first-action "\n") ""))))
+            (if first-action
+                (concat "** NEXT " (my/org-capture-quote first-action) "\n")
+              ""))))
 
 (defun my/org-note-template ()
   "Build the common note template."
   (let ((title (read-string "Title: "))
         (tags (my/org-read-tags)))
-    (concat "* " title tags "\n"
+    (concat "* " (my/org-capture-quote title) tags "\n"
             (my/org-capture-created-line)
-            (my/org-capture-source-line)
+            (my/org-capture-quote (my/org-capture-source-line))
             "%?\n")))
 
 (defun my/org-promote-creation-timestamp ()
@@ -266,7 +286,7 @@
     (while (not (string-empty-p
                  (setq item (string-trim
                              (read-string "Checkbox (empty to finish): ")))))
-      (push (format "   - [ ] %s" item) items))
+      (push (format "   - [ ] %s" (my/org-capture-quote item)) items))
     (if items (concat "\n" (string-join (nreverse items) "\n") "\n") "")))
 
 (defun my/org-project-subtask-template ()
@@ -274,58 +294,54 @@
   (let ((state (completing-read "Task state: "
                                 '("TODO" "NEXT" "WAITING") nil t))
         (title (read-string "Title: ")))
-    (concat "* " state " " title "\n"
+    (concat "* " state " " (my/org-capture-quote title) "\n"
             (my/org-read-checkboxes)
-            (my/org-capture-source-line)
+            (my/org-capture-quote (my/org-capture-source-line))
             "%?\n")))
 
+(defun my/org-capture-under (key name file heading template)
+  "Return capture KEY named NAME, prepending TEMPLATE under HEADING of FILE."
+  `(,key ,name entry (file+headline ,file ,heading) ,template
+         :prepend t :empty-lines-after 1))
+
 (setq org-capture-templates
-      `(("i" "Inbox")
-        ("it" "Task" entry (file+headline ,my/org-inbox-file "Tasks")
-          (function my/org-task-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("in" "Thought" entry (file+headline ,my/org-inbox-file "Thoughts")
-          (function my/org-note-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("w" "Work")
-        ("wt" "Task" entry (file+headline ,my/org-work-file "Tasks")
-          (function my/org-task-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("wp" "Project" entry (file+headline ,my/org-work-file "Projects")
-          (function my/org-project-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("p" "Personal")
-        ("pl" "Life" entry (file+headline ,my/org-personal-file "Life")
-          (function my/org-task-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("pp" "Project" entry (file+headline ,my/org-personal-file "Projects")
-          (function my/org-project-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("ps" "Someday" entry (file+headline ,my/org-personal-file "Someday")
-          (function my/org-task-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("s" "Subtask for NEXT project" entry
+      (list
+       '("i" "Inbox")
+       (my/org-capture-under "it" "Task" my/org-inbox-file "Tasks"
+                             '(function my/org-task-template))
+       (my/org-capture-under "in" "Thought" my/org-inbox-file "Thoughts"
+                             '(function my/org-note-template))
+       '("w" "Work")
+       (my/org-capture-under "wt" "Task" my/org-work-file "Tasks"
+                             '(function my/org-task-template))
+       (my/org-capture-under "wp" "Project" my/org-work-file "Projects"
+                             '(function my/org-project-template))
+       '("p" "Personal")
+       (my/org-capture-under "pl" "Life" my/org-personal-file "Life"
+                             '(function my/org-task-template))
+       (my/org-capture-under "pp" "Project" my/org-personal-file "Projects"
+                             '(function my/org-project-template))
+       (my/org-capture-under "ps" "Someday" my/org-personal-file "Someday"
+                             '(function my/org-task-template))
+       '("s" "Subtask for NEXT project" entry
          (function my/org-capture-next-project-target)
          (function my/org-project-subtask-template)
-         :empty-lines-before 0 :empty-lines-after 1)
-        ("n" "Notes")
-        ("ni" "Idea" entry (file+headline ,my/org-notes-file "Ideas")
-          (function my/org-note-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("nq" "Quote" entry (file+headline ,my/org-notes-file "Quotes")
-          (function my/org-note-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("nv" "Insight" entry (file+headline ,my/org-notes-file "Insights")
-          (function my/org-note-template)
-          :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("c" "Calendar")
-        ("ce" "Event" entry (file+headline ,my/org-calendar-file "Events")
-         "* %^{日程名称}\n%^{日期与时间（可输入时间段）}T\n%(my/org-capture-source-line)%?\n"
-         :prepend t :empty-lines-before 0 :empty-lines-after 1)
-        ("j" "Journal")
-        ("je" "Entry" plain (file+olp+datetree ,my/org-journal-file)
+         :empty-lines-after 1)
+       '("n" "Notes")
+       (my/org-capture-under "ni" "Idea" my/org-notes-file "Ideas"
+                             '(function my/org-note-template))
+       (my/org-capture-under "nq" "Quote" my/org-notes-file "Quotes"
+                             '(function my/org-note-template))
+       (my/org-capture-under "nv" "Insight" my/org-notes-file "Insights"
+                             '(function my/org-note-template))
+       '("c" "Calendar")
+       (my/org-capture-under
+        "ce" "Event" my/org-calendar-file "Events"
+        "* %^{日程名称}\n%^{日期与时间（可输入时间段）}T\n%(my/org-capture-source-line)%?\n")
+       '("j" "Journal")
+       `("je" "Entry" plain (file+olp+datetree ,my/org-journal-file)
          "%U\n%(my/org-capture-source-line)%?\n"
-         :empty-lines-before 0 :empty-lines-after 1)))
+         :empty-lines-after 1)))
 
 (defun my/org-capture ()
   "Open the grouped Org Capture menu and focus its editing buffer."
@@ -335,38 +351,31 @@
               (buffer (marker-buffer marker)))
     (switch-to-buffer buffer)))
 
+(defconst my/org-unprocessed-inbox-match "LEVEL=2/-DONE-CANCELLED"
+  "Tags/TODO match for Inbox entries that still need processing.")
+
 (defun my/org-inbox-count ()
   "Return the number of unprocessed task and thought entries in the Inbox."
-  (let ((count 0))
-    (with-current-buffer (find-file-noselect my/org-inbox-file)
-      (org-with-wide-buffer
-       (org-element-map (org-element-parse-buffer) 'headline
-         (lambda (headline)
-           (when (and (= (org-element-property :level headline) 2)
-                      (not (member (org-element-property :todo-keyword headline)
-                                   org-done-keywords)))
-             (cl-incf count))))))
-    count))
-
-(defun my/org-agenda-skip-completed-entry ()
-  "Skip the current Agenda entry when its TODO state is completed."
-  (when (member (org-get-todo-state) org-done-keywords)
-    (org-end-of-subtree t)))
+  (length (org-map-entries #'ignore my/org-unprocessed-inbox-match
+                           (list my/org-inbox-file))))
 
 (defun my/org-agenda-skip-unless-under-heading (heading)
   "Skip the current Agenda entry unless it is below HEADING."
   (unless (member heading (org-get-outline-path))
     (org-end-of-subtree t)))
 
+(defun my/org-action-todo (keyword header)
+  "Return an Agenda block listing KEYWORD tasks of the action files under HEADER."
+  `(todo ,keyword
+         ((org-agenda-files ',my/org-action-files)
+          (org-agenda-prefix-format "  %-10:c%(my/org-agenda-relative-indent)")
+          (org-agenda-overriding-header ,header))))
+
 (setq org-agenda-custom-commands
       `(("d" "今日日程与下一步"
-         ((agenda "" ((org-agenda-span 1)
-                      (org-agenda-overriding-header
+         ((agenda "" ((org-agenda-overriding-header
                        (format "今日日程（Inbox: %d 条待处理）" (my/org-inbox-count)))))
-           (todo "NEXT" ((org-agenda-files ',my/org-action-files)
-                         (org-agenda-prefix-format
-                          "  %-10:c%(my/org-agenda-relative-indent)")
-                         (org-agenda-overriding-header "下一步行动")))))
+          ,(my/org-action-todo "NEXT" "下一步行动")))
         ("w" "本周任务与日程" agenda ""
          ((org-agenda-span 'week)
           (org-agenda-start-on-weekday 1)
@@ -376,44 +385,28 @@
         ("o" "本月任务与日程" agenda ""
          ((org-agenda-span 'month)
           (org-agenda-start-day (format-time-string "%Y-%m-01"))
-          (org-agenda-start-on-weekday nil)
           (org-agenda-show-all-dates nil)
           (org-agenda-use-time-grid nil)
           (org-deadline-warning-days 0)
           (org-agenda-overriding-header "本月任务与日程")))
         ("i" "收件箱"
-         ((tags "LEVEL=2"
+         ((tags ,my/org-unprocessed-inbox-match
                 ((org-agenda-files ',(list my/org-inbox-file))
-                 (org-agenda-skip-function #'my/org-agenda-skip-completed-entry)
                  (org-agenda-overriding-header "待分类任务与想法")))))
         ("f" "未来计划"
-         ((search "."
-                  ((org-agenda-files ',(list my/org-notes-file))
-                   (org-agenda-skip-function
-                    '(my/org-agenda-skip-unless-under-heading "Ideas"))
-                   (org-agenda-overriding-header "未来计划")))))
+         ((tags "LEVEL>1"
+                ((org-agenda-files ',(list my/org-notes-file))
+                 (org-agenda-skip-function
+                  '(my/org-agenda-skip-unless-under-heading "Ideas"))
+                 (org-agenda-overriding-header "未来计划")))))
         ("p" "工作与个人任务回顾"
-         ((todo "NEXT" ((org-agenda-files ',my/org-action-files)
-                         (org-agenda-prefix-format
-                          "  %-10:c%(my/org-agenda-relative-indent)")
-                         (org-agenda-overriding-header "下一步行动")))
-           (todo "WAITING" ((org-agenda-files ',my/org-action-files)
-                            (org-agenda-prefix-format
-                             "  %-10:c%(my/org-agenda-relative-indent)")
-                            (org-agenda-overriding-header "等待中")))
-           (todo "TODO" ((org-agenda-files ',my/org-action-files)
-                         (org-agenda-prefix-format
-                          "  %-10:c%(my/org-agenda-relative-indent)")
-                         (org-agenda-overriding-header "待拆分或待安排")))))))
-
-(defun my/org-agenda-enter-evil-normal-state ()
-  "Enter Evil Normal state when an Org Agenda buffer is created."
-  (evil-normal-state))
+         (,(my/org-action-todo "NEXT" "下一步行动")
+          ,(my/org-action-todo "WAITING" "等待中")
+          ,(my/org-action-todo "TODO" "待拆分或待安排")))))
 
 (defun my/org-agenda-setup-evil ()
   "Configure Agenda navigation after both Evil and Org Agenda are available."
   (evil-set-initial-state 'org-agenda-mode 'normal)
-  (add-hook 'org-agenda-mode-hook #'my/org-agenda-enter-evil-normal-state)
   (evil-define-key 'normal org-agenda-mode-map
     (kbd "h") #'org-agenda-earlier
     (kbd "l") #'org-agenda-later
@@ -428,6 +421,7 @@
     (kbd "TAB") #'org-agenda-goto
     (kbd "q") #'org-agenda-quit))
 
+;; init-evil loads after this file, so these still wait for Evil.
 (with-eval-after-load 'evil
   (with-eval-after-load 'org-agenda
     (my/org-agenda-setup-evil)))
@@ -469,65 +463,29 @@
                                   cal-china-x-general-holidays
                                   calendar-holidays)))
 
+(defconst my/calfw-face-inheritance
+  '((calfw-title-face org-level-1 :height 1.2)
+    (calfw-header-face font-lock-keyword-face :weight bold)
+    (calfw-sunday-face error)
+    (calfw-saturday-face font-lock-constant-face)
+    (calfw-holiday-face warning)
+    (calfw-grid-face shadow)
+    (calfw-default-content-face default)
+    (calfw-periods-face font-lock-keyword-face)
+    (calfw-today-title-face highlight :weight bold)
+    (calfw-today-face highlight)
+    (calfw-toolbar-face mode-line-inactive)
+    (calfw-toolbar-button-off-face mode-line-inactive)
+    (calfw-toolbar-button-on-face mode-line :weight bold))
+  "Calfw faces, the theme face each inherits, and extra attributes.")
+
 (defun my/calfw-apply-theme-colors (&rest _)
-  "Apply semantic colors from the current theme to Calfw."
+  "Make Calfw faces inherit semantic colors from the current theme."
   (when (featurep 'calfw)
-    (set-face-attribute 'calfw-title-face nil
-                        :inherit 'org-level-1
-                        :foreground 'unspecified
-                        :background 'unspecified
-                        :height 1.2)
-    (set-face-attribute 'calfw-header-face nil
-                        :inherit 'font-lock-keyword-face
-                        :foreground 'unspecified
-                        :background 'unspecified
-                        :weight 'bold)
-    (set-face-attribute 'calfw-sunday-face nil
-                        :inherit 'error
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-saturday-face nil
-                        :inherit 'font-lock-constant-face
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-holiday-face nil
-                        :inherit 'warning
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-grid-face nil
-                        :inherit 'shadow
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-default-content-face nil
-                        :inherit 'default
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-periods-face nil
-                        :inherit 'font-lock-keyword-face
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-today-title-face nil
-                        :inherit 'highlight
-                        :foreground 'unspecified
-                        :background 'unspecified
-                        :weight 'bold)
-    (set-face-attribute 'calfw-today-face nil
-                        :inherit 'highlight
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-toolbar-face nil
-                        :inherit 'mode-line-inactive
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-toolbar-button-off-face nil
-                        :inherit 'mode-line-inactive
-                        :foreground 'unspecified
-                        :background 'unspecified)
-    (set-face-attribute 'calfw-toolbar-button-on-face nil
-                        :inherit 'mode-line
-                        :foreground 'unspecified
-                        :background 'unspecified
-                        :weight 'bold)))
+    (pcase-dolist (`(,face ,parent . ,attributes) my/calfw-face-inheritance)
+      (apply #'set-face-attribute face nil
+             :inherit parent :foreground 'unspecified :background 'unspecified
+             attributes))))
 
 (defun my/calfw-align-cell-pixels (render-function width &rest arguments)
   "Pad a Calfw cell rendered by RENDER-FUNCTION to WIDTH in pixels."
@@ -552,18 +510,11 @@
   (calfw-org-open-calendar
    nil "Org"
    (or (face-foreground 'font-lock-keyword-face nil t) "SteelBlue")
-   :view 'month)
-  (my/calfw-enter-evil-motion-state))
-
-(defun my/calfw-enter-evil-motion-state ()
-  "Ensure every Calfw calendar Buffer uses Evil Motion state."
-  (when (fboundp 'evil-motion-state)
-    (evil-motion-state)))
+   :view 'month))
 
 (defun my/calfw-setup-evil ()
   "Configure Evil navigation after both Evil and Calfw are available."
   (evil-set-initial-state 'calfw-calendar-mode 'motion)
-  (add-hook 'calfw-calendar-mode-hook #'my/calfw-enter-evil-motion-state)
   (evil-define-key 'motion calfw-calendar-mode-map
     (kbd "h") #'calfw-navi-previous-day-command
     (kbd "l") #'calfw-navi-next-day-command
@@ -589,7 +540,7 @@
                       calfw--render-right calfw--render-add-right))
     (advice-add function :around #'my/calfw-align-cell-pixels))
   (my/calfw-apply-theme-colors)
-  (advice-add 'my/load-theme :after #'my/calfw-apply-theme-colors))
+  (add-hook 'enable-theme-functions #'my/calfw-apply-theme-colors))
 
 (use-package calfw-org
   :ensure t
@@ -624,29 +575,47 @@
 (defvar my/org-appt-refresh-timer nil
   "Timer used to refresh appointments from Org Agenda files.")
 
-(defvar my/org-appt-reminders-starting nil
-  "Non-nil while Org appointment reminders are being initialized.")
-
 (defun my/org-start-appt-reminders (&rest _)
   "Start Org appointment reminders after the first Org workflow use."
-  (unless (or my/org-appt-reminders-starting
-              (timerp my/org-appt-refresh-timer))
-    (let ((my/org-appt-reminders-starting t))
-      (appt-activate 1)
-      (my/org-refresh-appts)
-      (setq my/org-appt-refresh-timer
-            (run-at-time 600 600 #'my/org-refresh-appts)))))
+  (unless (timerp my/org-appt-refresh-timer)
+    ;; Set first: loading the agenda files below re-enters `org-mode-hook'.
+    (setq my/org-appt-refresh-timer
+          (run-at-time 600 600 #'my/org-refresh-appts))
+    (appt-activate 1)
+    (my/org-refresh-appts)))
 
-(add-hook 'org-mode-hook #'my/org-start-appt-reminders)
+(defun my/org-agenda-file-buffer-p ()
+  "Return non-nil when the current buffer visits one of `org-agenda-files'."
+  (and buffer-file-name
+       (derived-mode-p 'org-mode)
+       (org-agenda-file-p)))
+
+(defun my/org-start-appt-reminders-from-file ()
+  "Start reminders once an agenda file is opened, after it finishes loading."
+  (when (and (not (timerp my/org-appt-refresh-timer))
+             (my/org-agenda-file-buffer-p))
+    (run-with-idle-timer 1 nil #'my/org-start-appt-reminders)))
+
+(add-hook 'org-mode-hook #'my/org-start-appt-reminders-from-file)
+
+(defvar my/org-revert-refresh-timer nil
+  "Pending refresh of Agenda views and reminders after synced files change.")
+
+(defun my/org-refresh-after-revert-now ()
+  "Rebuild every Agenda buffer and the reminder list."
+  (setq my/org-revert-refresh-timer nil)
+  (when (featurep 'org-agenda)
+    (org-agenda-redo-all t))
+  (when (timerp my/org-appt-refresh-timer)
+    (my/org-refresh-appts)))
 
 (defun my/org-refresh-after-revert ()
-  "Refresh generated Org views after a synced Org file is reverted."
-  (when (derived-mode-p 'org-mode)
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when (derived-mode-p 'org-agenda-mode)
-          (org-agenda-redo))))
-    (my/org-refresh-appts)))
+  "Schedule one refresh after agenda files are reverted by a sync."
+  ;; A sync usually reverts several files at once; refresh only once.
+  (when (and (my/org-agenda-file-buffer-p)
+             (not (timerp my/org-revert-refresh-timer)))
+    (setq my/org-revert-refresh-timer
+          (run-with-idle-timer 2 nil #'my/org-refresh-after-revert-now))))
 
 (add-hook 'after-revert-hook #'my/org-refresh-after-revert)
 

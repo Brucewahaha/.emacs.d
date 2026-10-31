@@ -33,17 +33,24 @@
   "Main Buffer text height in 1/10 point."
   :type 'integer
   :group 'faces)
+(defun my/available-font (families)
+  "Return the first installed member of FAMILIES on the selected frame.
+Cache the font list per frame, not globally across daemon displays."
+  (when (display-graphic-p)
+    (let ((fonts (or (frame-parameter nil 'my/font-families)
+                     (let ((fonts (font-family-list)))
+                       (set-frame-parameter nil 'my/font-families fonts)
+                       fonts))))
+      (seq-find (lambda (family) (member family fonts)) families))))
+
 (defun my/nerd-font-available-p ()
   "Return non-nil when this GUI frame can render Nerd Font icons."
-  (and (display-graphic-p)
-       (cl-find-if (lambda (family)
-                     (member family (font-family-list)))
-                   my/nerd-font-families)))
+   (my/available-font my/nerd-font-families))
 ;; 2. 行号与视觉反馈
 (global-display-line-numbers-mode 1)
 (setq display-line-numbers-type 'relative)
 (column-number-mode t)
-(fset 'yes-or-no-p 'y-or-n-p)
+(setq use-short-answers t)
 (setq visible-bell 1)
 
 ;; 内置 tab-line：每个 Window 保持独立的普通 Buffer 和特殊 Buffer 标签序列。
@@ -113,12 +120,9 @@
       (when (and (kill-buffer buffer) delete-window-p)
         (delete-window window)))))
 (setq tab-line-tabs-function #'my/tab-line-tabs
-      tab-line-switch-cycling t
       tab-line-new-button-show nil
-      tab-line-close-button-show t
       tab-line-tab-name-function #'my/tab-line-tab-name
       tab-line-tab-name-format-function #'my/tab-line-tab-name-format
-      tab-line-tab-name-truncated-max 20
       tab-line-separator (propertize "|" 'face 'tab-line)
       tab-line-tab-face-functions '(tab-line-tab-face-modified
                                     my/tab-line-tab-face-current-highlight)
@@ -215,46 +219,6 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   (my/setup-icons))
 
 
-(defconst my/night-theme 'modus-vivendi)
-(defconst my/light-theme 'doric-jade)
-
-(defun my/load-theme (theme)
-  "Enable THEME after disabling every currently active theme."
-  (dolist (enabled-theme (copy-sequence custom-enabled-themes))
-    (disable-theme enabled-theme))
-  (my/reset-tab-line-faces)
-  (load-theme theme t)
-  (when (fboundp 'my/setup-font)
-    (my/setup-font))
-  (my/tab-line-remove-borders)
-  (my/apply-ui-font-size))
-
-(defun my/toggle-theme ()
-  "Switch between the configured night and light themes."
-  (interactive)
-  (my/load-theme (if (memq my/night-theme custom-enabled-themes)
-                     my/light-theme
-                   my/night-theme)))
-
-(use-package doric-themes
-  :ensure t)
-
-;; (use-package doom-themes
-;;   :ensure t
-;;   :demand t
-;;   :init
-;;   (setq doom-themes-enable-bold t
-;;         doom-themes-enable-italic t
-;;         doom-themes-treemacs-theme "doom-atom"
-;;         doom-themes-treemacs-enable-variable-pitch nil)
-;;   :config
-;;   (doom-themes-visual-bell-config)
-;;   (doom-themes-treemacs-config)
-;;   (doom-themes-org-config))
-
-(my/load-theme my/night-theme)
-(global-set-key (kbd "C-c t t") #'my/toggle-theme)
-
 ;; 4. 字体设置
 (defun my/setup-font ()
   (interactive)
@@ -269,11 +233,11 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
           (emjfl my/emoji-font-families)
           (nerdfl my/nerd-font-families)
          
-         (ef (cl-find-if (lambda (f) (member f (font-family-list))) efl))
-         (cf (cl-find-if (lambda (f) (member f (font-family-list))) cfl))
-         (symf (cl-find-if (lambda (f) (member f (font-family-list))) symfl))
-         (emjf (cl-find-if (lambda (f) (member f (font-family-list))) emjfl))
-         (nerdf (cl-find-if (lambda (f) (member f (font-family-list))) nerdfl)))
+         (ef (my/available-font efl))
+         (cf (my/available-font cfl))
+         (symf (my/available-font symfl))
+         (emjf (my/available-font emjfl))
+         (nerdf (my/available-font nerdfl)))
     ;; A. 设置默认字体
     (when ef
       (set-face-attribute 'default nil :family ef))
@@ -294,6 +258,41 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
     ;; E. Nerd Font 仅负责私用区图标。
     (when nerdf
       (set-fontset-font t '(#xe000 . #xf8ff) (font-spec :family nerdf)))))
+
+(defconst my/night-theme 'modus-vivendi-deuteranopia)
+(defconst my/light-theme 'doric-jade)
+
+(defun my/after-enable-theme (theme)
+  "Reapply font and Tab Line adjustments after THEME is enabled.
+Runs for every theme switch, including `M-x load-theme' and `consult-theme'."
+  ;; `user' and `use-package' are settings pseudo-themes, not color themes.
+  (unless (memq theme '(user use-package))
+    (my/setup-font)
+    (my/tab-line-remove-borders)
+    (my/apply-ui-font-size)))
+
+(add-hook 'enable-theme-functions #'my/after-enable-theme)
+
+(defun my/load-theme (theme)
+  "Enable THEME after disabling every currently active theme."
+  (dolist (enabled-theme (copy-sequence custom-enabled-themes))
+    (disable-theme enabled-theme))
+  (my/reset-tab-line-faces)
+  (load-theme theme t))
+
+(defun my/toggle-theme ()
+  "Switch between the configured night and light themes."
+  (interactive)
+  (my/load-theme (if (memq my/night-theme custom-enabled-themes)
+                     my/light-theme
+                   my/night-theme)))
+
+(use-package doric-themes
+  :ensure t
+  :defer t)
+
+(my/load-theme my/night-theme)
+(global-set-key (kbd "C-c t t") #'my/toggle-theme)
 
 (with-eval-after-load 'org-modern
   ;; `org-modern-symbol' is defined lazily when the first Org buffer is opened.

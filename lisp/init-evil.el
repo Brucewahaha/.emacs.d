@@ -6,7 +6,16 @@
   :ensure t
   :bind ("C-x u" . vundo) ; 绑定到 C-x u，或者你想用的任何键
   :config
-  (setq vundo-glyph-alist vundo-unicode-symbols))
+   (setq vundo-glyph-alist vundo-unicode-symbols))
+
+(defun my/evil-block-insert-without-reindent (original &rest args)
+  "Keep rectangular insertions in their selected columns.
+Evil replays the insertion on other lines when leaving Insert state.
+Electric indentation during that replay can move the inserted text away
+from the rectangle, especially when inserting paired delimiters."
+  (let ((electric-indent-mode
+         (and electric-indent-mode (not evil-insert-vcount))))
+    (apply original args)))
 
 ;; 2. Evil 核心配置
 (use-package evil
@@ -23,6 +32,8 @@
 
   :config
   (evil-mode 1)
+  (advice-add 'evil-cleanup-insert-state :around
+              #'my/evil-block-insert-without-reindent)
    ;; Keep single-buffer Vim quit commands from escalating to frame/Emacs exit.
    (evil-define-command my/evil-write-and-delete-buffer (file &optional bang)
      "Write FILE and delete the current buffer."
@@ -155,48 +166,40 @@
 
 
 ;;; esc quits
-(defun minibuffer-keyboard-quit ()
-  "Abort recursive edit.
-In Delete Selection mode, if the mark is active, just deactivate it;
-then it takes a second \\[keyboard-quit] to abort the minibuffer."
+(defun my/minibuffer-keyboard-quit ()
+  "Deactivate an active selection, otherwise abort the minibuffer."
   (interactive)
   (if (and delete-selection-mode transient-mark-mode mark-active)
-      (setq deactivate-mark  t)
-    (when (get-buffer "*Completions*") (delete-windows-on "*Completions*"))
+      (setq deactivate-mark t)
     (abort-recursive-edit)))
 (define-key evil-normal-state-map [escape] 'keyboard-quit)
 (define-key evil-visual-state-map [escape] 'keyboard-quit)
-(dolist (map (list minibuffer-local-map
-                   minibuffer-local-ns-map
-                   minibuffer-local-completion-map
-                   minibuffer-local-must-match-map))
-  ;; Keep minibuffer editing independent from global completion and Consult keys.
-  (define-key map (kbd "C-SPC") #'set-mark-command)
-  (define-key map (kbd "C-a") #'move-beginning-of-line)
-  (define-key map (kbd "C-b") #'backward-char)
-  (define-key map (kbd "C-d") #'delete-char)
-  (define-key map (kbd "C-e") #'move-end-of-line)
-  (define-key map (kbd "C-f") #'forward-char)
-  (define-key map (kbd "C-k") #'kill-line)
-  (define-key map (kbd "C-q") #'quoted-insert)
-  (define-key map (kbd "C-t") #'transpose-chars)
-  (define-key map (kbd "C-w") #'backward-kill-word)
-  (define-key map (kbd "C-u") #'universal-argument)
-  (define-key map (kbd "C-y") #'yank)
-  (define-key map (kbd "C-/") #'undo)
-  (define-key map (kbd "C-_") #'undo)
-  (define-key map (kbd "M-b") #'backward-word)
-  (define-key map (kbd "M-d") #'kill-word)
-  (define-key map (kbd "M-f") #'forward-word)
-  (define-key map (kbd "M-DEL") #'backward-kill-word)
-  (define-key map (kbd "M-t") #'transpose-words)
-  (define-key map (kbd "M-y") #'yank-pop)
-  (define-key map (kbd "C-s") #'isearch-forward))
-(define-key minibuffer-local-map [escape] 'minibuffer-keyboard-quit)
-(define-key minibuffer-local-ns-map [escape] 'minibuffer-keyboard-quit)
-(define-key minibuffer-local-completion-map [escape] 'minibuffer-keyboard-quit)
-(define-key minibuffer-local-must-match-map [escape] 'minibuffer-keyboard-quit)
-(define-key minibuffer-local-isearch-map [escape] 'minibuffer-keyboard-quit)
+;; Every minibuffer keymap, Vertico's included, inherits this one, so a
+;; binding here covers them all.  Keep minibuffer editing independent from
+;; global completion and Consult keys.
+(dolist (binding '(("<escape>" . my/minibuffer-keyboard-quit)
+                   ("C-SPC" . set-mark-command)
+                   ("C-a" . move-beginning-of-line)
+                   ("C-b" . backward-char)
+                   ("C-d" . delete-char)
+                   ("C-e" . move-end-of-line)
+                   ("C-f" . forward-char)
+                   ("C-k" . kill-line)
+                   ("C-q" . quoted-insert)
+                   ("C-t" . transpose-chars)
+                   ("C-w" . backward-kill-word)
+                   ("C-u" . universal-argument)
+                   ("C-y" . yank)
+                   ("C-/" . undo)
+                   ("C-_" . undo)
+                   ("M-b" . backward-word)
+                   ("M-d" . kill-word)
+                   ("M-f" . forward-word)
+                   ("M-DEL" . backward-kill-word)
+                   ("M-t" . transpose-words)
+                   ("M-y" . yank-pop)
+                   ("C-s" . isearch-forward)))
+  (keymap-set minibuffer-local-map (car binding) (cdr binding)))
 
 
 (provide 'init-evil)

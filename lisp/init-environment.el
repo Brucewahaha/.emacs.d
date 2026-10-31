@@ -28,6 +28,8 @@
   (set-next-selection-coding-system 'utf-16le-dos))
 
 ;; Shell 环境变量
+;; Keep the interactive login shell: this machine adds tool paths in .zshrc,
+;; which a non-interactive `-l' shell would silently omit.
 (when (require 'exec-path-from-shell nil t)
   (dolist (var '("SSH_AUTH_SOCK" "SSH_AGENT_PID" "GPG_AGENT_INFO" "LANG"
                  "LC_CTYPE" "NIX_SSL_CERT_FILE" "NIX_PATH"))
@@ -39,9 +41,7 @@
 
 (defun my/prepend-exec-paths (directories)
   "Prepend existing DIRECTORIES to both `exec-path' and PATH."
-  (let* ((separator (if (characterp path-separator)
-                        (char-to-string path-separator)
-                      path-separator))
+  (let* ((separator path-separator)
          (directories
           (delete-dups
            (seq-filter #'file-directory-p

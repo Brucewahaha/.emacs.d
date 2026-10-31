@@ -1,7 +1,8 @@
 ;;; init-remote.el --- Fast remote development -*- lexical-binding: t -*-
 ;;; Code:
 
-(require-package 'tramp "2.8.1.4")
+;; `:ensure' accepts the built-in TRAMP 2.7, so upgrade it explicitly.
+(my/package-ensure 'tramp "2.8.1.4")
 
 (use-package tramp
   :ensure t

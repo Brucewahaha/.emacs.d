@@ -25,33 +25,23 @@
 (use-package eglot
   :ensure nil
   :commands eglot-ensure
-  :hook ((python-mode . my/eglot-ensure)
-         (python-ts-mode . my/eglot-ensure)
-         (c-mode . my/eglot-ensure)
-         (c++-mode . my/eglot-ensure)
-         (c-ts-mode . my/eglot-ensure)
-         (c++-ts-mode . my/eglot-ensure)
-         (js-mode . my/eglot-ensure)
-         (js-ts-mode . my/eglot-ensure)
-         (typescript-ts-mode . my/eglot-ensure)
-         (tsx-ts-mode . my/eglot-ensure)
-         (go-mode . my/eglot-ensure)
-         (go-ts-mode . my/eglot-ensure)
-         (sh-mode . my/eglot-ensure)
-         (bash-ts-mode . my/eglot-ensure)
-         (rust-mode . my/eglot-ensure)
-         (rust-ts-mode . my/eglot-ensure)
-         (ruby-mode . my/eglot-ensure)
-         (ruby-ts-mode . my/eglot-ensure)
-         (haskell-mode . my/eglot-ensure)
-         (haskell-ts-mode . my/eglot-ensure)
-         (json-mode . my/eglot-ensure)
-         (json-ts-mode . my/eglot-ensure)
-         (cmake-mode . my/eglot-ensure)
-         (cmake-ts-mode . my/eglot-ensure))
+  ;; Built-in modes plus their Tree-sitter variants.  A hook naming a mode that
+  ;; is not installed (e.g. `haskell-mode') costs nothing and starts working
+  ;; once the package is added.
+  :hook (((python-base-mode c-mode c++-mode c-ts-base-mode
+           js-base-mode typescript-ts-base-mode
+           sh-base-mode ruby-base-mode json-ts-mode cmake-ts-mode
+           go-mode go-ts-mode rust-mode rust-ts-mode
+           haskell-mode haskell-ts-mode)
+          . my/eglot-ensure))
   :config
-  (setq eglot-events-buffer-size 0
+  (setq eglot-events-buffer-config '(:size 0 :format full)
         eglot-autoshutdown t)
+  ;; Typing-time indentation belongs to the major mode, as with VS Code's
+  ;; default `editor.formatOnType: false'.  Otherwise clangd re-indents the
+  ;; line after RET in its own style (LLVM, 2 columns, without .clang-format).
+  (add-to-list 'eglot-ignored-server-capabilities
+               :documentOnTypeFormattingProvider)
   (add-to-list 'eglot-server-programs
                '((c-mode c-ts-mode c++-mode c++-ts-mode)
                  . my/eglot-clangd-contact))
@@ -68,6 +58,11 @@
   :ensure nil
   :bind (("M-n" . flymake-goto-next-error)
          ("M-p" . flymake-goto-prev-error)))
+
+;; Eglot and eldoc-box render the servers' Markdown documentation with it.
+(use-package markdown-mode
+  :ensure t
+  :defer t)
 
 (use-package consult-eglot
   :ensure t

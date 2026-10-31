@@ -18,35 +18,8 @@
 ;; 3. 性能优化：禁用包自动初始化，由 init.el 掌控
 (setq package-enable-at-startup nil)
 (setq gc-cons-threshold most-positive-fixnum)
-
-;; TRAMP-RPC requires a newer TRAMP than the one bundled with Emacs 30.1.
-;; Prefer an installed upgrade when TRAMP is first needed, without loading it
-;; during startup.  package.el installs it normally when absent.
-(let* ((package-dir
-        (expand-file-name
-         (format "elpa-%s.%s" emacs-major-version emacs-minor-version)
-         user-emacs-directory))
-       (tramp-dirs
-        (and (file-directory-p package-dir)
-             (let (result)
-               (dolist (directory
-                        (directory-files package-dir t "\\`tramp-[0-9]"))
-                  (when (and (or (file-exists-p
-                                  (expand-file-name "tramp.el" directory))
-                                 (file-exists-p
-                                  (expand-file-name "tramp.elc" directory)))
-                             (or (file-exists-p
-                                  (expand-file-name "tramp-loaddefs.el" directory))
-                                 (file-exists-p
-                                  (expand-file-name "tramp-loaddefs.elc" directory))))
-                    (push directory result)))
-               result))))
-  (when tramp-dirs
-    (let ((tramp-dir
-           (car (sort tramp-dirs
-                      (lambda (left right)
-                        (string-version-lessp right left))))))
-      (push tramp-dir load-path))))
+;; The upgraded TRAMP that tramp-rpc needs comes first in `load-path' once
+;; `package-initialize' runs in init-elpa.el; nothing loads TRAMP before that.
 
 (provide 'early-init)
 

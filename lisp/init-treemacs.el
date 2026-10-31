@@ -3,9 +3,9 @@
 
 (use-package treemacs
   :ensure t
-  :defer t
   :config
-  (treemacs-tag-follow-mode)
+  ;; Follow the current file only; tag following re-runs imenu on a timer.
+  (treemacs-follow-mode 1)
   (define-key treemacs-mode-map (kbd "C-e")
               #'my/treemacs-toggle-current-project)
   (define-key treemacs-mode-map [mouse-1] #'treemacs-single-click-expand-action)

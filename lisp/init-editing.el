@@ -6,37 +6,70 @@
 
 ;; 基础编辑行为
 (electric-pair-mode t)
-(setq electric-pair-open-newline-between-pairs nil)
 (defun my/disable-electric-pair-in-minibuffer ()
   "在 minibuffer 中关闭成对括号补全。"
   (electric-pair-local-mode -1))
 (add-hook 'minibuffer-setup-hook #'my/disable-electric-pair-in-minibuffer)
-(show-paren-mode 1)
 (global-hl-line-mode 1)
 (add-hook 'prog-mode-hook #'hs-minor-mode)
 (add-hook 'prog-mode-hook #'visual-line-mode)
 (add-hook 'text-mode-hook #'visual-line-mode)
-(electric-indent-mode -1)
 
 ;; 缩进与 Tab
-(use-package editorconfig
-  :ensure nil
-  :config
-  (editorconfig-mode 1))
+(defcustom my/indent-width 4
+  "Indentation width used when a project states no rule of its own."
+  :type 'integer
+  :group 'editing)
 
-(setq-default indent-tabs-mode nil
-              tab-width 4
-              standard-indent 4
-              c-basic-offset 4)
+(defconst my/indent-offset-variables
+  '(standard-indent
+    c-basic-offset c-ts-mode-indent-offset
+    java-ts-mode-indent-offset
+    js-indent-level js-switch-indent-offset
+    typescript-ts-mode-indent-offset
+    json-ts-mode-indent-offset
+    css-indent-offset
+    sgml-basic-offset html-ts-mode-indent-offset nxml-child-indent
+    python-indent-offset
+    sh-basic-offset
+    rust-indent-offset rust-ts-mode-indent-offset
+    go-ts-mode-indent-offset
+    ruby-indent-level lua-indent-level
+    cperl-indent-level perl-indent-level
+    cmake-ts-mode-indent-offset
+    yaml-indent-offset)
+  "Per-language indentation width variables.
+Mixed values across these is the usual cause of one block indenting by a
+different amount than its neighbours.  `lisp-indent-offset' is absent on
+purpose: Lisp indentation belongs to each form's own indent rule.")
+
+(defun my/apply-indent-width (&optional width)
+  "Set `tab-width' and every known language offset to WIDTH."
+  (interactive (list (read-number "Indent width: " my/indent-width)))
+  (let ((width (or width my/indent-width)))
+    (setq-default tab-width width)
+    (dolist (variable my/indent-offset-variables)
+      (set-default variable width))))
+
+(setq-default indent-tabs-mode nil)
+(my/apply-indent-width)
+
+;; Tree-sitter modes indent from the parse tree, which stays correct through
+;; nested blocks where CC Mode's heuristics drift.
+(setq c-ts-mode-indent-style 'bsd)
+
+;; A CC Mode style overrides `c-basic-offset' when it is applied, so the
+;; width has to live inside the style rather than beside it.  Plain "bsd"
+;; carries an 8-column offset.
 (with-eval-after-load 'cc-mode
-  (setf (alist-get 'c-mode c-default-style) "bsd"
-        (alist-get 'c++-mode c-default-style) "bsd"))
-(setq c-ts-mode-indent-style 'bsd
-      c-ts-mode-indent-offset 4)
+  (c-add-style "my-bsd" `("bsd" (c-basic-offset . ,my/indent-width)))
+  (setq c-default-style
+        '((java-mode . "java") (awk-mode . "awk") (other . "my-bsd"))))
+
 (setq tab-always-indent 'complete)
 
-(defun my/tab-or-complete ()
-  "Confirm an active Corfu candidate, or advance to the next tab stop."
+(defun my/tab-dwim ()
+  "Confirm an active Corfu candidate, otherwise indent or complete."
   (interactive)
   ;; Evil's Insert-state map takes precedence over Corfu's popup map.
   (if (and (bound-and-true-p completion-in-region-mode)
@@ -44,52 +77,76 @@
            corfu--candidates
            (fboundp 'corfu-insert))
       (corfu-insert)
-    (tab-to-tab-stop)))
-
-(defun my/newline-with-inherited-indent (&optional count)
-  "Insert COUNT newlines and inherit the current line's indentation."
-  (interactive "*p")
-  (let ((indent (current-indentation))
-        (electric-indent-mode nil)
-        (electric-pair-open-newline-between-pairs nil))
-    (newline count)
-    (indent-to indent)))
+    (call-interactively #'indent-for-tab-command)))
 
 (defun my/setup-prog-indentation ()
-  "Use predictable manual indentation while keeping native region indentation."
-  (local-set-key (kbd "RET") #'my/newline-with-inherited-indent)
-  (local-set-key (kbd "TAB") #'my/tab-or-complete)
-  (local-set-key (kbd "<tab>") #'my/tab-or-complete)
+  "Make TAB indent by syntax, or complete once the line is already indented."
+  (local-set-key (kbd "TAB") #'my/tab-dwim)
+  (local-set-key (kbd "<tab>") #'my/tab-dwim)
   (when (fboundp 'evil-local-set-key)
-    (evil-local-set-key 'insert (kbd "RET") #'my/newline-with-inherited-indent)
-    (evil-local-set-key 'insert (kbd "TAB") #'my/tab-or-complete)
-    (evil-local-set-key 'insert (kbd "<tab>") #'my/tab-or-complete)))
+    (evil-local-set-key 'insert (kbd "TAB") #'my/tab-dwim)
+    (evil-local-set-key 'insert (kbd "<tab>") #'my/tab-dwim)))
 
 (add-hook 'prog-mode-hook #'my/setup-prog-indentation)
 
-;; Traditional CC Mode has its own electric commands, independent of
-;; Electric Indent.  Disable those without changing manual syntax indentation.
-(defun my/disable-c-electric-editing ()
-  "Disable automatic CC Mode indentation and keyword expansion."
-  (c-toggle-electric-state -1)
+(defun my/disable-c-abbrev ()
+  "Disable CC Mode keyword expansion."
   (abbrev-mode -1))
 
-(add-hook 'c-mode-common-hook #'my/disable-c-electric-editing)
+(add-hook 'c-mode-common-hook #'my/disable-c-abbrev)
+
+;; EditorConfig runs last so a project's own rules win over the defaults above.
+(use-package editorconfig
+  :ensure nil
+  :config
+  (editorconfig-mode 1))
+
+;; Like VS Code's `editor.detectIndentation': follow an existing file's
+;; indentation when neither EditorConfig nor a local variable states one.
+;; Emacs 30 applies EditorConfig through directory-local variables.
+(defun my/indentation-set-locally-p ()
+  "Return non-nil when a project or file rule set this buffer's indentation."
+  (seq-some (lambda (variable)
+              (or (assq variable dir-local-variables-alist)
+                  (assq variable file-local-variables-alist)))
+            (cons 'indent-tabs-mode my/indent-offset-variables)))
+
+(defun my/detect-indentation ()
+  "Adopt the indentation already used in this file."
+  (when (and (derived-mode-p 'prog-mode)
+             (not (my/indentation-set-locally-p)))
+    (dtrt-indent-mode 1)))
+
+(use-package dtrt-indent
+  :ensure t
+  :commands dtrt-indent-mode
+  :init
+  ;; After local variables, and before indent-bars reads the offset.
+  (add-hook 'hack-local-variables-hook #'my/detect-indentation 80))
 
 ;; Display only: dots for spaces and arrows for real tabs, without changing text.
-(defun my/dim-whitespace-space (&rest _)
-  "Blend space markers toward the current theme's background."
+(defun my/dim-whitespace-space-in-frame (frame)
+  "Blend FRAME's space markers toward its theme background.
+A daemon's initial frame has no real colors, so the blend has to be
+recomputed per frame once `emacsclient' creates a displayable one."
   (require 'color)
-  (let ((foreground (color-name-to-rgb (face-foreground 'shadow nil t)))
-        (background (color-name-to-rgb (face-background 'default nil t))))
-    (when (and foreground background)
-      (set-face-attribute
-       'whitespace-space nil
-       :foreground
-       (apply #'color-rgb-to-hex
-              (cl-mapcar (lambda (fg bg) (+ (* 0.25 fg) (* 0.75 bg)))
-                         foreground background))
-       :background 'unspecified))))
+  (when (frame-live-p frame)
+    (let ((foreground
+           (color-name-to-rgb (face-foreground 'shadow frame t) frame))
+          (background
+           (color-name-to-rgb (face-background 'default frame t) frame)))
+      (when (and foreground background)
+        (set-face-attribute
+         'whitespace-space frame
+         :foreground
+         (apply #'color-rgb-to-hex
+                (cl-mapcar (lambda (fg bg) (+ (* 0.25 fg) (* 0.75 bg)))
+                           foreground background))
+         :background 'unspecified)))))
+
+(defun my/dim-whitespace-space (&rest _)
+  "Blend space markers in every live frame."
+  (mapc #'my/dim-whitespace-space-in-frame (frame-list)))
 
 (use-package whitespace
   :ensure nil
@@ -101,7 +158,9 @@
   (whitespace-tab ((t (:inherit shadow :foreground unspecified :background unspecified))))
   :config
   (my/dim-whitespace-space)
-  (advice-add 'my/load-theme :after #'my/dim-whitespace-space))
+  (add-hook 'enable-theme-functions #'my/dim-whitespace-space)
+  (add-hook 'after-make-frame-functions #'my/dim-whitespace-space-in-frame)
+  (add-hook 'server-after-make-frame-hook #'my/dim-whitespace-space))
 
 (defun my/indent-bars-maybe-enable ()
   "Enable indentation bars after the buffer's indentation is settled."
@@ -127,7 +186,6 @@
 (use-package indent-bars
   :ensure t
   :commands indent-bars-mode
-  :diminish
   :init
   ;; Run after EditorConfig and file-local variables.
   (add-hook 'hack-local-variables-hook
@@ -186,9 +244,7 @@
       (kbd "M-<up>") #'move-text-up
       (kbd "M-<down>") #'move-text-down)))
 
-;; 剪贴板与选区
-(setq select-enable-primary nil
-      select-enable-clipboard t)
+;; 选区：输入时替换选中文本
 (use-package delsel
   :ensure nil
   :hook (after-init . delete-selection-mode))
@@ -200,23 +256,19 @@
   (expand-file-name "backups/" user-emacs-directory))
 (make-directory my/auto-save-directory t)
 (make-directory my/backup-directory t)
-(setq auto-save-default t
-      auto-save-timeout 15
+(setq auto-save-timeout 15
       auto-save-interval 200
       auto-save-file-name-transforms
       `((".*" ,my/auto-save-directory t))
       auto-save-list-file-prefix
       (expand-file-name ".saves-" my/auto-save-directory)
-      make-backup-files t
       backup-directory-alist `(("." . ,my/backup-directory))
       version-control t
       kept-new-versions 10
       kept-old-versions 5
       delete-old-versions t
       backup-by-copying t
-      backup-by-copying-when-linked t
-      ;; Git history already covers version-controlled files.
-      vc-make-backup-files nil)
+      backup-by-copying-when-linked t)
 
 (provide 'init-editing)
 ;;; init-editing.el ends here

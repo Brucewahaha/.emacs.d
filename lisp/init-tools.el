@@ -4,6 +4,7 @@
 ;; 跳转
 (use-package avy
   :ensure t
+  :defer t
   :config
   (setq avy-timeout-seconds 0.3)
   (setq avy-all-windows t))
@@ -45,13 +46,11 @@
   ;; 3. 设置选词框显示方式 (在光标处弹出)
   (setq pyim-page-tooltip 'posframe) ; 如果你没装 posframe，可以改为 'popup 或 'minibuffer
 
-  ;; 5. 标点符号设置
-  ;; 默认全角标点，你可以根据需求调整
+  ;; 4. 标点符号：关闭转换，始终输入半角标点
   (setq-default pyim-punctuation-dict nil)
 
-  :bind
-  (("M-j" . pyim-convert-string-at-point) ; 转换光标前的拼音为中文
-   ("C-\\" . toggle-input-method)))        ; 切换输入法
+  ;; C-\ 已默认绑定 `toggle-input-method'。
+  :bind ("M-j" . pyim-convert-string-at-point)) ; 转换光标前的拼音为中文
 
 (use-package pyim-basedict
   :ensure t

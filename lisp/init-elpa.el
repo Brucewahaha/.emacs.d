@@ -1,10 +1,8 @@
-;;; init-elpa.el --- Settings and helpers for package.el -*- lexical-binding: t -*-
+;;; init-elpa.el --- Settings for package.el and use-package -*- lexical-binding: t -*-
 ;;; Commentary:
 ;;; Code:
 
 (require 'package)
-(require 'cl-lib)
-
 
 ;;; Install into separate package dirs for each Emacs version, to prevent bytecode incompatibility
 (setq package-user-dir
@@ -33,34 +31,9 @@
 (setq package-archive-priorities '(("melpa" . 10)
                                    ("gnu" . 0)
                                    ("nongnu" . 0)))
-(add-to-list 'package-unsigned-archives "melpa")
-;; Official MELPA Mirror, in case necessary.
-;;(add-to-list 'package-archives (cons "melpa-mirror" (concat proto "://www.mirrorservice.org/sites/melpa.org/packages/")) t)
 
 ;; Allow built-in packages to be upgraded
 (setq package-install-upgrade-built-in t)
-
-
-;;; On-demand installation of packages
-
-(defun require-package (package &optional min-version no-refresh)
-  "Install given PACKAGE, optionally requiring MIN-VERSION.
-If NO-REFRESH is non-nil, the available package lists will not be
-re-downloaded in order to locate PACKAGE."
-  (when (stringp min-version)
-    (setq min-version (version-to-list min-version)))
-  (or (package-installed-p package min-version)
-      (let* ((known (cdr (assoc package package-archive-contents)))
-             (best (car (sort known (lambda (a b)
-                                      (version-list-<= (package-desc-version b)
-                                                       (package-desc-version a)))))))
-        (if (and best (version-list-<= min-version (package-desc-version best)))
-            (package-install best)
-          (if no-refresh
-              (error "No version of %s >= %S is available" package min-version)
-            (package-refresh-contents)
-            (require-package package min-version t)))
-        (package-installed-p package min-version))))
 
 (defun my/package-install-refresh-on-missing-file (original package &rest args)
   "Refresh stale archive metadata and retry installing PACKAGE once.
@@ -84,17 +57,15 @@ which has not arrived yet, or has already been replaced."
 (advice-add 'package-install :around
             #'my/package-install-refresh-on-missing-file)
 
-(defun maybe-require-package (package &optional min-version no-refresh)
-  "Try to install PACKAGE, and return non-nil if successful.
-In the event of failure, return nil and print a warning message.
-Optionally require MIN-VERSION.  If NO-REFRESH is non-nil, the
-available package lists will not be re-downloaded in order to
-locate PACKAGE."
-  (condition-case err
-      (require-package package min-version no-refresh)
-    (error
-     (message "Couldn't install optional package `%s': %S" package err)
-     nil)))
+(defun my/package-ensure (package &optional min-version)
+  "Install PACKAGE unless MIN-VERSION or any version is already installed.
+Use this only where `use-package' `:ensure' cannot: it accepts a built-in
+package as installed, so it never upgrades one to MIN-VERSION."
+  (unless (package-installed-p package (and min-version
+                                            (version-to-list min-version)))
+    (unless (assq package package-archive-contents)
+      (package-refresh-contents))
+    (package-install package)))
 
 
 ;;; Fire up package.el
@@ -102,54 +73,45 @@ locate PACKAGE."
 (setq package-native-compile t)
 (package-initialize)
 
+;; `:ensure' skips packages that are already installed, so it never marks them
+;; as selected.  Without this, `package-autoremove' would offer to delete most
+;; of the configuration's packages.
+(defvar my/ensured-packages nil
+  "Packages declared by this configuration during startup.")
 
-;; package.el updates the saved version of package-selected-packages correctly only
-;; after custom-file has been loaded, which is a bug. We work around this by adding
-;; the required packages to package-selected-packages after startup is complete.
+(defun my/note-ensured-package (name args &rest _)
+  "Record packages that use-package `:ensure' for NAME with ARGS."
+  (dolist (ensure args)
+    (let ((package (if (eq ensure t) (use-package-as-symbol name) ensure)))
+      (when (consp package)
+        (setq package (car package)))
+      (when (and package (symbolp package) (package-installed-p package))
+        (add-to-list 'my/ensured-packages package)))))
 
-(defvar sanityinc/required-packages nil)
+(defun my/note-vc-package (arg &rest _)
+  "Record the package that use-package `:vc' describes with ARG."
+  (when (package-installed-p (car arg))
+    (add-to-list 'my/ensured-packages (car arg))))
 
-(defun sanityinc/note-selected-package (oldfun package &rest args)
-  "If OLDFUN reports PACKAGE was successfully installed, note that fact.
-The package name is noted by adding it to
-`sanityinc/required-packages'.  This function is used as an
-advice for `require-package', to which ARGS are passed."
-  (let ((available (apply oldfun package args)))
-    (prog1
-        available
-      (when available
-        (add-to-list 'sanityinc/required-packages package)))))
+(with-eval-after-load 'use-package-ensure
+  (advice-add 'use-package-ensure-elpa :after #'my/note-ensured-package))
+(with-eval-after-load 'use-package-core
+  (advice-add 'use-package-vc-install :after #'my/note-vc-package))
 
-(advice-add 'require-package :around 'sanityinc/note-selected-package)
+(defun my/save-selected-packages ()
+  "Save the selected package list, writing `custom-file' only on change."
+  (let ((selected (seq-uniq (append my/ensured-packages
+                                    package-selected-packages))))
+    (unless (seq-set-equal-p selected package-selected-packages)
+      (package--save-selected-packages selected))))
 
+(add-hook 'after-init-hook #'my/save-selected-packages)
 
-(when (fboundp 'package--save-selected-packages)
-  (require-package 'seq)
-  (add-hook 'after-init-hook
-            (lambda ()
-              (package--save-selected-packages
-               (seq-uniq (append sanityinc/required-packages package-selected-packages))))))
-
-
-(let ((package-check-signature nil))
-  (require-package 'gnu-elpa-keyring-update))
-
-
-(defun sanityinc/set-tabulated-list-column-width (col-name width)
-  "Set any column with name COL-NAME to the given WIDTH."
-  (when (> width (length col-name))
-    (cl-loop for column across tabulated-list-format
-             when (string= col-name (car column))
-             do (setf (elt column 1) width))))
-
-(defun sanityinc/maybe-widen-package-menu-columns ()
-  "Widen some columns of the package menu table to avoid truncation."
-  (when (boundp 'tabulated-list-format)
-    (sanityinc/set-tabulated-list-column-width "Version" 13)
-    (let ((longest-archive-name (apply 'max (mapcar 'length (mapcar 'car package-archives)))))
-      (sanityinc/set-tabulated-list-column-width "Archive" longest-archive-name))))
-
-(add-hook 'package-menu-mode-hook 'sanityinc/maybe-widen-package-menu-columns)
+;; The keyring has to be installed before signatures made with newer GNU ELPA
+;; keys can be checked, so this one package skips the check.
+(unless (package-installed-p 'gnu-elpa-keyring-update)
+  (let ((package-check-signature nil))
+    (my/package-ensure 'gnu-elpa-keyring-update)))
 
 
 (provide 'init-elpa)

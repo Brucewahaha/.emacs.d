@@ -22,14 +22,13 @@
         '("\\*Messages\\*"
           "Output\\*$"
           "\\*Compile-Log\\*"
-          "\\*Help\\*"
           "\\*helpful.*"
           "\\*Symbols\\*"
           "\\*Warnings\\*"
           "\\*Flymake errors\\*"
           "\\*Async Shell Command\\*"
-          "\\*eat\\*"             ; 你的 eat 終端
-          "\\*sdcv\\*"            ; 查詞窗口
+          ;; *eat* is placed by `my/terminal-toggle' (right or bottom);
+          ;; Popper's display rule would override that placement.
           help-mode
           compilation-mode
           grep-mode

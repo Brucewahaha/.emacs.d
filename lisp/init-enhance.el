@@ -3,8 +3,6 @@
 ;;; This file replaces Ivy/Counsel with the Vertico + Consult + Embark stack.
 ;;; Code:
 
-(require 'thingatpt)
-
 (defun my/consult-ripgrep-dwim ()
   "Search with Ripgrep, initially using the region or symbol at point."
   (interactive)
@@ -53,31 +51,36 @@
    (add-hook 'dashboard-after-initialize-hook #'my/dashboard-goto-first-item)
    (dashboard-setup-startup-hook))
 
-(use-package highlight-symbol
-  :ensure t
-  :bind ("<f3>" . highlight-symbol))
+;; Built-in highlighting; M-s h u removes a highlight.
+(global-set-key (kbd "<f3>") #'highlight-symbol-at-point)
+
+;; 彩虹括号默认关闭；C-c t r 在所有编程 Buffer 中开关。
+(defvar my/rainbow-delimiters-enabled nil
+  "非 nil 时在编程 Buffer 中启用彩虹括号。")
+
+(defun my/rainbow-delimiters-maybe-enable ()
+  "按全局开关启用当前 Buffer 的彩虹括号。"
+  (when my/rainbow-delimiters-enabled
+    (rainbow-delimiters-mode 1)))
+
+(defun my/toggle-rainbow-delimiters ()
+  "全局开关彩虹括号。"
+  (interactive)
+  (setq my/rainbow-delimiters-enabled (not my/rainbow-delimiters-enabled))
+  (dolist (buffer (buffer-list))
+    (with-current-buffer buffer
+      (when (derived-mode-p 'prog-mode)
+        (rainbow-delimiters-mode
+         (if my/rainbow-delimiters-enabled 1 -1)))))
+  (message "彩虹括号已%s" (if my/rainbow-delimiters-enabled "开启" "关闭")))
+
+;; The hook is ours, so the package itself loads only when first enabled.
+(add-hook 'prog-mode-hook #'my/rainbow-delimiters-maybe-enable)
+(global-set-key (kbd "C-c t r") #'my/toggle-rainbow-delimiters)
 
 (use-package rainbow-delimiters
   :ensure t
-  :hook (prog-mode . my/rainbow-delimiters-maybe-enable)
-  :config
-  (defvar my/rainbow-delimiters-enabled nil
-    "非 nil 时在编程 Buffer 中启用彩虹括号。")
-  (defun my/rainbow-delimiters-maybe-enable ()
-    "按全局开关启用当前 Buffer 的彩虹括号。"
-    (when my/rainbow-delimiters-enabled
-      (rainbow-delimiters-mode 1)))
-  (defun my/toggle-rainbow-delimiters ()
-    "全局开关彩虹括号。"
-    (interactive)
-    (setq my/rainbow-delimiters-enabled (not my/rainbow-delimiters-enabled))
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (when (derived-mode-p 'prog-mode)
-          (rainbow-delimiters-mode
-           (if my/rainbow-delimiters-enabled 1 -1)))))
-    (message "彩虹括号已%s" (if my/rainbow-delimiters-enabled "开启" "关闭")))
-  (global-set-key (kbd "C-c t r") #'my/toggle-rainbow-delimiters))
+  :commands rainbow-delimiters-mode)
 
 ;; =============================================================================
 ;; 2. Vertico 补全全家桶 (替代 Ivy/Counsel)
@@ -97,35 +100,17 @@
   :ensure t
   :custom
   (completion-styles '(orderless basic))
-  (completion-category-overrides '((file (styles basic partial-completion))))
-  :config
-  (setq orderless-matching-styles '(orderless-literal orderless-regexp)))
+  (completion-category-overrides '((file (styles basic partial-completion)))))
 
 ;; Marginalia: 补全列表侧边栏 (显示函数说明、文件权限等)
 (use-package marginalia
   :ensure t
   :init
-  (marginalia-mode 1)
-  :config
-  ;; Marginalia's current MELPA build asks compat to emulate the Emacs 31
-  ;; three-argument API, but some compat builds expand that call incorrectly on
-  ;; Emacs 30.  The one-argument API still produces a suitable relative age.
-  (when (version< emacs-version "31")
-    (defun my/marginalia-time-relative-emacs-30 (time)
-      "Format TIME as a relative age using the Emacs 30 API."
-      (concat (seconds-to-string
-               (max 0 (float-time (time-since time))))
-              " ago"))
-    (advice-add 'marginalia--time-relative :override
-                #'my/marginalia-time-relative-emacs-30)))
+  (marginalia-mode 1))
 
-;; --- 深度整合 Savehist ---
 (use-package savehist
   :init
-  (savehist-mode 1)
-  :config
-  ;; 记得把 vertico 的历史也存下来
-  (add-to-list 'savehist-additional-variables 'vertico-repeat-history))
+  (savehist-mode 1))
 
 ;; Consult: 增强型搜索命令 (完全替代 Counsel 和 Swiper)
 (use-package consult
@@ -144,10 +129,7 @@
          :map search-map
          ("r" . my/consult-ripgrep-dwim) ; 对应 M-s r
          ("g" . consult-git-grep))       ; 对应 M-s g
-  :hook (completion-list-mode . consult-preview-at-point-mode)
-  :init
-  ;; 这一行强制让 M-s 成为前缀键，防止 Purcell 框架或其他配置占用它
-  (define-key global-map (kbd "M-s") search-map))
+  :hook (completion-list-mode . consult-preview-at-point-mode))
 
 ;; Embark: “右键菜单”功能，允许在补全项上执行多种动作
 (use-package embark
@@ -165,10 +147,12 @@
   :demand t)
 
 ;; Wgrep: 允许在 grep/ripgrep 结果 buffer 中直接修改文件 (类似 ivy-occur)
+;; Its autoloads hook into grep buffers, so loading can wait until then.
 (use-package wgrep
   :ensure t
-  :config
-  (setq wgrep-auto-save-buffer t))
+  :defer t
+  :custom
+  (wgrep-auto-save-buffer t))
 
 (provide 'init-enhance)
 ;;; init-enhance.el ends here
