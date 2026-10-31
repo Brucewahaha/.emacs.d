@@ -125,28 +125,45 @@ purpose: Lisp indentation belongs to each form's own indent rule.")
   (add-hook 'hack-local-variables-hook #'my/detect-indentation 80))
 
 ;; Display only: dots for spaces and arrows for real tabs, without changing text.
+(defcustom my/whitespace-dot-opacity 0.18
+  "Fraction of foreground color used for space dots, between 0 and 1."
+  :type '(float :tag "Opacity")
+  :group 'whitespace)
+
 (defun my/dim-whitespace-space-in-frame (frame)
   "Blend FRAME's space markers toward its theme background.
 A daemon's initial frame has no real colors, so the blend has to be
 recomputed per frame once `emacsclient' creates a displayable one."
   (require 'color)
-  (when (frame-live-p frame)
-    (let ((foreground
-           (color-name-to-rgb (face-foreground 'shadow frame t) frame))
-          (background
-           (color-name-to-rgb (face-background 'default frame t) frame)))
-      (when (and foreground background)
-        (set-face-attribute
-         'whitespace-space frame
-         :foreground
-         (apply #'color-rgb-to-hex
-                (cl-mapcar (lambda (fg bg) (+ (* 0.25 fg) (* 0.75 bg)))
-                           foreground background))
-         :background 'unspecified)))))
+  (when (and (frame-live-p frame)
+             (or (display-graphic-p frame) (frame-parameter frame 'tty-type))
+             (display-color-p frame))
+    (with-selected-frame frame
+    (let ((foreground (or (face-foreground 'shadow frame t)
+                          (face-foreground 'default frame t)))
+          (background (face-background 'default frame t)))
+      ;; Some themes leave `shadow' unspecified; daemon frames may have no
+      ;; real colors at all.  `color-name-to-rgb' does not accept nil.
+      (when (and (stringp foreground) (stringp background))
+        (let ((foreground (color-name-to-rgb foreground frame))
+              (background (color-name-to-rgb background frame)))
+          (when (and foreground background)
+            (set-face-attribute
+             'whitespace-space frame
+             :foreground
+             (apply #'color-rgb-to-hex
+                    (cl-mapcar (lambda (fg bg)
+                                 (+ bg (* my/whitespace-dot-opacity (- fg bg))))
+                               foreground background))
+             :background 'unspecified))))))))
 
 (defun my/dim-whitespace-space (&rest _)
   "Blend space markers in every live frame."
   (mapc #'my/dim-whitespace-space-in-frame (frame-list)))
+
+(defun my/refresh-whitespace-after-theme (&rest _)
+  "Refresh dots after theme and face initialization have finished."
+  (run-at-time 0 nil #'my/dim-whitespace-space))
 
 (use-package whitespace
   :ensure nil
@@ -158,7 +175,9 @@ recomputed per frame once `emacsclient' creates a displayable one."
   (whitespace-tab ((t (:inherit shadow :foreground unspecified :background unspecified))))
   :config
   (my/dim-whitespace-space)
-  (add-hook 'enable-theme-functions #'my/dim-whitespace-space)
+  (remove-hook 'enable-theme-functions #'my/dim-whitespace-space)
+  (add-hook 'enable-theme-functions #'my/refresh-whitespace-after-theme)
+  (add-hook 'window-setup-hook #'my/dim-whitespace-space)
   (add-hook 'after-make-frame-functions #'my/dim-whitespace-space-in-frame)
   (add-hook 'server-after-make-frame-hook #'my/dim-whitespace-space))
 

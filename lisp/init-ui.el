@@ -71,21 +71,28 @@ Cache the font list per frame, not globally across daemon displays."
   (format "%d %s%s"
           (1+ (seq-position buffers buffer))
           (tab-line-tab-name-truncated-buffer buffer buffers)
-          (if (buffer-modified-p buffer) " *" "")))
+          (if (and (buffer-file-name buffer) (buffer-modified-p buffer)) " *" "")))
 (defun my/tab-line-tab-name-format (tab tabs)
   "Format TAB and apply semantic faces to Dired and unsaved indicators."
   (let* ((buffer (if (bufferp tab) tab (alist-get 'buffer tab)))
+         (selected-p (if (bufferp tab)
+                         (eq buffer (window-buffer))
+                       (alist-get 'selected tab)))
          (name (if buffer
                    (funcall tab-line-tab-name-function buffer tabs)
                  (alist-get 'name tab)))
          (display-name (string-replace "%" "%%" name))
          (formatted (tab-line-tab-name-format-default tab tabs)))
-    (when (and buffer
-               (with-current-buffer buffer (derived-mode-p 'dired-mode)))
+    (when (and buffer (not selected-p)
+                (with-current-buffer buffer (derived-mode-p 'dired-mode)))
       (add-face-text-property 0 (length display-name)
                               'font-lock-comment-face nil formatted))
-    (when (and buffer (buffer-modified-p buffer))
-      (add-face-text-property 0 (length display-name) 'warning nil formatted))
+    (when (and buffer (buffer-file-name buffer) (buffer-modified-p buffer))
+      ;; A warning foreground can be indistinguishable from the selection
+      ;; background (e.g. Chyla).  Keep the selected face's color pair.
+      (add-face-text-property 0 (length display-name)
+                              (if selected-p '(:weight bold) 'warning)
+                              nil formatted))
     formatted))
 (defun my/tab-line-switch-to-index (index)
   "跳转到当前 Window 标签栏中的第 INDEX 个 Buffer。"
@@ -130,12 +137,13 @@ Cache the font list per frame, not globally across daemon displays."
       switch-to-prev-buffer-skip #'my/switch-to-prev-buffer-skip)
 (defun my/tab-line-tab-face-current-highlight
     (tab _tabs face buffer-p selected-p)
-  "Apply the theme's hover highlight to an unmodified current TAB."
+  "Apply the theme's hover highlight to the selected TAB."
   (when selected-p
     (let ((buffer (if buffer-p tab (alist-get 'buffer tab))))
       (setq face
             `(:inherit (tab-line-highlight
-                        ,(if (and buffer (buffer-modified-p buffer))
+                        ,(if (and buffer (buffer-file-name buffer)
+                                  (buffer-modified-p buffer))
                              face
                            'tab-line-tab-inactive))))))
   face)
@@ -259,8 +267,9 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
     (when nerdf
       (set-fontset-font t '(#xe000 . #xf8ff) (font-spec :family nerdf)))))
 
-(defconst my/night-theme 'modus-vivendi-deuteranopia)
-(defconst my/light-theme 'doric-jade)
+(defconst my/night-theme 'chyla-dark)
+(defconst my/alternate-night-theme 'amaranth-dark)
+(defconst my/light-theme 'flatfluc)
 
 (defun my/after-enable-theme (theme)
   "Reapply font and Tab Line adjustments after THEME is enabled.
@@ -283,11 +292,18 @@ Runs for every theme switch, including `M-x load-theme' and `consult-theme'."
 (defun my/toggle-theme ()
   "Switch between the configured night and light themes."
   (interactive)
-  (my/load-theme (if (memq my/night-theme custom-enabled-themes)
+  (my/load-theme (if (seq-some (lambda (theme) (memq theme custom-enabled-themes))
+                               (list my/night-theme my/alternate-night-theme))
                      my/light-theme
                    my/night-theme)))
 
-(use-package doric-themes
+(use-package chyla-dark-theme
+  :ensure t
+  :defer t)
+(use-package amaranth-dark-theme
+  :ensure t
+  :defer t)
+(use-package flatfluc-theme
   :ensure t
   :defer t)
 

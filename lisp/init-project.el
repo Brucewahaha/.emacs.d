@@ -110,8 +110,9 @@ earlier run in this buffer is kept; otherwise a default is chosen once."
          ("C-c b r" . my/project-recompile))
   :hook (compilation-filter . ansi-color-compilation-filter)
   :custom
-  ;; Emacs ships "make -k "; -k keeps going after the first failing target.
-  (compile-command "make ")
+  ;; Leave plain M-x compile empty until a command has been used or supplied
+  ;; by local variables.  C-c b c still suggests a project/single-file build.
+  (compile-command "")
   (compilation-always-kill t)
   (compilation-scroll-output t))
 
