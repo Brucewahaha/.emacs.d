@@ -22,6 +22,11 @@
   (unless (my/buffer-needs-lightweight-p)
     (apply original args)))
 
+(defun my/eglot-disable-c-inlay-hints ()
+  "Hide clangd's inline parameter, type and array-index annotations."
+  (when (derived-mode-p 'c-mode 'c++-mode 'c-ts-mode 'c++-ts-mode)
+    (eglot-inlay-hints-mode -1)))
+
 (use-package eglot
   :ensure nil
   :commands eglot-ensure
@@ -37,6 +42,7 @@
   :config
   (setq eglot-events-buffer-config '(:size 0 :format full)
         eglot-autoshutdown t)
+  (add-hook 'eglot-managed-mode-hook #'my/eglot-disable-c-inlay-hints)
   ;; Typing-time indentation belongs to the major mode, as with VS Code's
   ;; default `editor.formatOnType: false'.  Otherwise clangd re-indents the
   ;; line after RET in its own style (LLVM, 2 columns, without .clang-format).

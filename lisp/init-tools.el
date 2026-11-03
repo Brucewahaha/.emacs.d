@@ -22,6 +22,12 @@
          ("C-h k" . helpful-key)))
 
 ;; 滚动优化
+(use-package xt-mouse
+  :ensure nil
+  :config
+  ;; Global mode also initializes terminals connected later by emacsclient.
+  (xterm-mouse-mode 1))
+
 (defun my/enable-pixel-scroll-on-graphical-frame (frame)
   "Enable precise pixel scrolling after a graphical FRAME is available."
   (with-selected-frame frame

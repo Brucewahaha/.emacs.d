@@ -17,6 +17,36 @@ from the rectangle, especially when inserting paired delimiters."
          (and electric-indent-mode (not evil-insert-vcount))))
     (apply original args)))
 
+(defun my/close-current-window-buffer (&optional force)
+  "Close the selected window's buffer without deleting any windows.
+If another window displays it, only remove it from this window's history.
+Otherwise kill it, asking about unsaved changes unless FORCE is non-nil."
+  (let* ((window (selected-window))
+         (buffer (window-buffer window))
+         (shared (delq window (get-buffer-window-list buffer nil t))))
+    (if shared
+        (progn
+          (switch-to-prev-buffer window t)
+          (when (eq (window-buffer window) buffer)
+            (switch-to-buffer (if (eq buffer (get-buffer "*scratch*"))
+                                  (generate-new-buffer "*scratch*")
+                                (get-buffer-create "*scratch*"))))
+          (unrecord-window-buffer window buffer)
+          (set-window-parameter
+           window 'tab-line-buffers
+           (delq buffer (window-parameter window 'tab-line-buffers))))
+      (if (not force)
+          (kill-buffer buffer)
+        (let ((modified (buffer-modified-p buffer)))
+          (unwind-protect
+              (progn
+                (set-buffer-modified-p nil)
+                (kill-buffer buffer))
+            ;; A query hook can still cancel the kill; preserve its dirty flag.
+            (when (buffer-live-p buffer)
+              (with-current-buffer buffer
+                (set-buffer-modified-p modified)))))))))
+
 ;; 2. Evil 核心配置
 (use-package evil
   :ensure t
@@ -35,26 +65,31 @@ from the rectangle, especially when inserting paired delimiters."
   (advice-add 'evil-cleanup-insert-state :around
               #'my/evil-block-insert-without-reindent)
    ;; Keep single-buffer Vim quit commands from escalating to frame/Emacs exit.
+   (evil-define-command my/evil-close-window-buffer (&optional bang)
+     "Close this window's buffer, preserving other windows."
+     (interactive "<!>")
+     (my/close-current-window-buffer bang))
    (evil-define-command my/evil-write-and-delete-buffer (file &optional bang)
      "Write FILE and delete the current buffer."
      (interactive "<f><!>")
      (evil-write nil nil nil file bang)
-     (evil-delete-buffer (current-buffer)))
+      (my/close-current-window-buffer))
    (evil-define-command my/evil-save-modified-and-delete-buffer (file &optional bang)
      "Write FILE when modified, then delete the current buffer."
      (interactive "<f><!>")
      (when (buffer-modified-p)
        (evil-write nil nil nil file bang))
-     (evil-delete-buffer (current-buffer)))
-   (evil-ex-define-cmd "q[uit]" #'evil-delete-buffer)
+      (my/close-current-window-buffer))
+   (evil-ex-define-cmd "q[uit]" #'my/evil-close-window-buffer)
    (evil-ex-define-cmd "wq" #'my/evil-write-and-delete-buffer)
    (evil-ex-define-cmd "x[it]" #'my/evil-save-modified-and-delete-buffer)
    (evil-ex-define-cmd "exi[t]" #'my/evil-save-modified-and-delete-buffer)
    (define-key evil-normal-state-map (kbd "Z Z")
                #'my/evil-save-modified-and-delete-buffer)
-   (define-key evil-normal-state-map (kbd "Z Q") #'evil-delete-buffer)
-   (define-key evil-window-map (kbd "q") #'evil-delete-buffer)
-   (define-key evil-window-map (kbd "C-q") #'evil-delete-buffer)
+   (define-key evil-normal-state-map (kbd "Z Q") #'my/evil-close-window-buffer)
+   ;; Window commands never kill buffers or escalate to frame/Emacs exit.
+   (define-key evil-window-map (kbd "q") #'delete-window)
+   (define-key evil-window-map (kbd "C-q") #'delete-window)
    ;; 文件树快捷键，仅覆盖 Evil Normal 状态。
    (define-key evil-normal-state-map (kbd "C-e") #'my/treemacs-toggle-current-project)
 
@@ -104,25 +139,26 @@ from the rectangle, especially when inserting paired delimiters."
 (my-terminal-cursor-shape-block)
 
 ;; 强制设置 region 在终端下的颜色
-(defun my/fix-terminal-faces ()
-  (when (not (display-graphic-p))
-    (set-face-attribute 'region nil
-                        :background "#555555" ;; 设置一个明显的颜色，例如深灰色
-                        :foreground "white")
-    ;; 确保 cursor 颜色可见
-    (set-cursor-color "#FF0000")))
+(defun my/fix-terminal-faces (&optional frame)
+  "Apply terminal-only face overrides to FRAME, never to GUI frames."
+  (let ((frame (or frame (selected-frame))))
+    (when (and (frame-live-p frame) (not (display-graphic-p frame)))
+      (set-face-attribute 'region frame
+                          :background "#555555"
+                          :foreground "white")
+      (set-frame-parameter frame 'cursor-color "#FF0000")
+      (set-face-attribute 'hl-line frame
+                          :background "#333333"
+                          :underline nil))))
 
 (add-hook 'tty-setup-hook 'my/fix-terminal-faces)
 (add-hook 'after-init-hook 'my/fix-terminal-faces)
+(add-hook 'after-make-frame-functions #'my/fix-terminal-faces)
 
-;; 强制修复 hl-line 在终端下的颜色
-(defun my/fix-hl-line-face ()
-  (when (not (display-graphic-p))
-    (set-face-attribute 'hl-line nil 
-                        :background "#333333" ;; 设置一个比背景深一点或浅一点的颜色
-                        :underline nil)))
-(add-hook 'tty-setup-hook 'my/fix-hl-line-face)
-(add-hook 'after-init-hook 'my/fix-hl-line-face)
+(defun my/refresh-terminal-faces (&rest _)
+  "Reapply terminal overrides after enabling a theme."
+  (mapc #'my/fix-terminal-faces (frame-list)))
+(add-hook 'enable-theme-functions #'my/refresh-terminal-faces)
 
 ;; 4. Evil Collection
 (use-package evil-collection

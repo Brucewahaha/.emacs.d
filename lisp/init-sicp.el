@@ -14,6 +14,9 @@
 
 (use-package paredit
   :ensure t
+  :bind (:map paredit-mode-map
+              ("M-s" . nil)
+              ("C-c s" . paredit-splice-sexp))
   :hook ((emacs-lisp-mode
           lisp-interaction-mode
           lisp-mode

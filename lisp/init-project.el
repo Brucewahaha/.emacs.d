@@ -104,6 +104,21 @@ earlier run in this buffer is kept; otherwise a default is chosen once."
         (recompile))
     (my/project-compile)))
 
+(defun my/compilation-reuse-source-window (original msg mk end-mk)
+  "Visit compilation locations in an existing source window when possible."
+  (let* ((source (marker-buffer mk))
+         ;; Scope this rule to the destination, leaving Popper's compilation
+         ;; output placement alone.  Split only if no usable window exists.
+         (display-buffer-alist
+          (cons (list (lambda (buffer _action) (eq buffer source))
+                      '(display-buffer-reuse-window
+                        display-buffer-use-some-window
+                        display-buffer-pop-up-window)
+                      '(some-window . mru)
+                      '(inhibit-same-window . t))
+                display-buffer-alist)))
+    (funcall original msg mk end-mk)))
+
 (use-package compile
   :ensure nil
   :bind (("C-c b c" . my/project-compile)
@@ -114,7 +129,10 @@ earlier run in this buffer is kept; otherwise a default is chosen once."
   ;; by local variables.  C-c b c still suggests a project/single-file build.
   (compile-command "")
   (compilation-always-kill t)
-  (compilation-scroll-output t))
+  (compilation-scroll-output t)
+  :config
+  (advice-add 'compilation-goto-locus :around
+              #'my/compilation-reuse-source-window))
 
 ;; Keep the familiar prefix while using Emacs' built-in project commands.
 (global-set-key (kbd "C-c p") project-prefix-map)

@@ -20,7 +20,7 @@
 | 代码补全 | Corfu、Cape、Yasnippet | 补全弹窗、文件/文本/关键词候选、代码模板 |
 | 开发工具（内置） | Eglot、Flymake、Project、Compilation | LSP、诊断、项目管理与编译 |
 | Git | Magit | 查看差异、暂存、提交等 Git 操作 |
-| 缩进与显示 | EditorConfig、Tree-sitter、Whitespace、Indent Bars、Rainbow Delimiters | 项目缩进规则、语法分析、空格点、作用域竖线和彩虹括号 |
+| 缩进与显示 | EditorConfig、Tree-sitter、Whitespace、Indent Bars、Rainbow Delimiters | 项目缩进规则、语法分析、异常空白提示、作用域竖线和彩虹括号 |
 | 窗口与撤销 | Tab Line、Winner（内置）、Popper、Ace Window、Vundo | 标签、布局恢复、临时窗口、窗口选择、撤销历史 |
 | 文件管理 | Dired（内置）、Dired Subtree、Treemacs | 目录操作、展开子目录、项目侧栏 |
 | 终端与远程 | Eat、Eshell / TRAMP（内置）、tramp-rpc | 内置终端及 SSH 远程开发 |
@@ -55,8 +55,9 @@ F3 / M-s h u       用内置 Hi Lock 高亮当前符号 / 取消高亮
 
 - **缩进**：项目的 `.editorconfig` / 局部变量优先，其次检测文件已有缩进，否则默认 4 格。通常用空格，Makefile / Go 等按语言规则使用 Tab；C/C++ 默认 BSD/Allman 风格。保存时不自动格式化。
 - **补全**：输入 2 个字符后等待 0.2 秒弹出；手动触发见下方。Cape 的文本候选只扫描当前 Buffer。
-- **显示**：空格为淡点、Tab 为箭头；竖线高亮当前语法作用域，光标在行首空白中也按本行语句识别。括号自动配对，Lisp 由 Paredit 管理。
+- **显示**：普通空格不显示圆点；标记 Tab、行尾空白和特定空格/Tab 混用情况，仅提示、不自动清理。Tab 在 Makefile 等文件中可以是合法内容。竖线高亮当前语法作用域，光标在行首空白中也按本行语句识别。括号自动配对，Lisp 由 Paredit 管理。
 - **主题**：默认 `chyla-dark`，备选 `amaranth-dark`（`M-x load-theme`），浅色 `flatfluc`。从任一深色主题切换到浅色后，再切回默认深色。
+- **Paredit**：Lisp/Scheme 等 Buffer 中保留 `M-s` 为搜索前缀；`C-c s` 执行 `paredit-splice-sexp`（去掉包围当前表达式的外层结构，保留其内容）。
 
 ### 标签、窗口与退出
 
@@ -65,19 +66,25 @@ F3 / M-s h u       用内置 Hi Lock 高亮当前符号 / 取消高亮
 ```text
 [b / ]b           按当前 Window 的标签顺序切换 Buffer
 Ctrl+Shift+1..9    跳到当前 Window 第 1–9 个标签，需终端/系统支持
-:q / ZQ / C-w q   关闭当前 Buffer，不是退出 Emacs
+:q / ZQ           关闭当前窗口的 Buffer 标签，保留分屏和其他窗口的显示
 :wq / :x / ZZ     保存并关闭 Buffer；:x / ZZ 仅在修改后保存
 :qa / :wqa        退出 Emacs / 保存后退出
 C-w v / C-w s     固定向右 / 向下分屏
 C-w h/j/k/l       在窗口间移动
 C-w u / C-w C-r   撤销 / 重做窗口布局
 C-w o / M-o       用 Ace Window 选择窗口，不是只保留当前窗口
-C-w c             关闭窗口但保留 Buffer，也可隐藏终端面板
-q                 关闭 Popper/侧边窗口，在 Capture 中取消捕获
+C-w q / C-w C-q   删除当前分屏，保留 Buffer；无法删除时提示，不退出 Emacs
+C-w c / C-x 0     删除当前分屏，保留 Buffer，也可隐藏终端面板
+q                 退出 Popper/侧边窗口的临时显示，在 Capture 中取消捕获
                   普通编辑区仍为录制宏，各模式专用绑定优先
 ```
 
 每个 Window 单独保留标签序列，普通 Buffer 与 `*特殊 Buffer*` 分组显示。
+
+- `:q` / `ZQ` 关闭当前窗口的标签：若其他窗口仍显示同一 Buffer，只从当前窗口移出；否则尝试 kill Buffer，未保存修改需确认。`:wq` / `:x` / `ZZ` 保存后使用相同关闭规则。不删除分屏，也不退出 Emacs。`:q!` 只在确实 kill Buffer 时丢弃未保存修改；共享显示时不会丢弃其他窗口的编辑。`C-x k` 则始终尝试全局 kill 选定 Buffer。
+- 标签栏 × 关闭对应 Buffer；关闭当前窗口最后一个标签时，若该窗口可删除，则连同分屏一起关闭。
+- 临时显示中的 `q` 使用 `quit-window`，可能删除窗口，也可能恢复之前显示的 Buffer；若明确要删除分屏，用 `C-w q` 或 `C-x 0`。
+- `C-x 3` / `C-w v` 在右侧新建窗口显示当前 Buffer，新窗口初始只有该 Buffer 的标签；原窗口保留它，并非将标签搬走。当前配置中这两个操作都不自动切换焦点，可用 `C-w l` 进入右侧。
 
 ### 终端、弹窗与文件树
 
@@ -100,9 +107,14 @@ Treemacs 内：`h` 根目录上移，`l` 将目录设为根或打开文件，`H`
 C-c b c            保存修改后，确认并运行当前 Buffer 的编译命令
 C-c b r            保存修改后，重复上次编译；没有记录时询问命令
 M-x compile        没有历史或局部设置时命令为空，自行输入 Shell 命令
+RET                在编译输出的错误信息处，访问对应文件和行
+M-g n / M-g p      从代码或输出中访问下一个 / 上一个错误位置，可跨文件
+M-n / M-p          在编译输出中仅移动到下一条 / 上一条错误信息
 ```
 
 `C-c b c/r` 会不经确认保存可自动保存的已修改文件，范围不限于当前项目；编译输出由 Popper 管理。
+
+从编译输出跳转时，优先复用已有目标窗口或最近使用的其他可用窗口显示源文件，保留编译输出；没有可复用窗口时才分屏。`M-g n/p` 调用原生 `next-error` / `previous-error`，无需切回编译窗口，也可导航 grep/occur 等结果；来源混淆时用 `M-x next-error-select-buffer` 指定结果 Buffer。修改后需重新编译，输出才会更新。
 
 默认编译命令按以下顺序选择，提示时都可以修改，修改后该 Buffer 会记住：
 
@@ -124,8 +136,30 @@ M-y                从 kill-ring 中选择粘贴内容
 C-. / M-.          Embark 候选操作 / 默认操作
 C-h f / C-h v      函数 / 变量帮助
 C-h k / C-h B      按键帮助 / 当前可用按键
+C-h w / C-h b      查询命令的快捷键 / 列出当前按键绑定
+M-g i / M-g g      当前 Buffer 结构列表（Imenu）/ 跳到行号
 C-\ / M-j          切换小鹤双拼 / 转换光标前的拼音
 ```
+
+**搜索怎么选：** `C-s` 搜当前 Buffer（含未保存修改），`M-s r` 搜项目/目录的磁盘正文，`C-c p f` 搜文件名，`C-x b` 切换 Buffer。候选中用 `C-n/C-p` 选择、`RET` 确认、`C-g` 取消；许多界面可用空格分隔多个筛选词，例如 `M-x` 输入 `buffer kill`。
+
+**Ripgrep：** 提示括号中的路径是搜索根，默认项目根，未识别项目则用当前目录；不是全盘搜索，且通常遵循 `.gitignore`、跳过隐藏文件。用 `C-u M-x consult-ripgrep RET` 可指定目录（当前 `C-u M-s r` 不支持此功能）。
+
+- `#timeout`：搜索 `timeout`，`#` 是分隔符，不是搜索词。
+- `#timeout#client.cpp`：先搜索 `timeout`，再按路径/内容筛选返回结果中的 `client.cpp`。
+- 它与 grep 都搜索文件内容，主要区别是 Consult 提供实时候选和预览；传统 `grep/rgrep` 直接保留结果 Buffer。
+
+**常用操作：**
+
+- `C-h k` 后按目标键查作用；`C-h w` 输入命令名查绑定；`C-h b/B` 浏览绑定。请在实际 Buffer 和 Evil 状态中查询。按前缀后停顿可看 Which Key 提示。
+- `M-y` 搜索复制/剪切历史，粘贴后也可更换刚粘贴的内容。
+- `M-g i` 找函数/章节，`M-g g` 跳行号，`M-g n/p` 导航编译/grep/occur 结果；代码中的 `M-n/p` 则是 Flymake 实时诊断。
+- 原生 Isearch 用 `M-x isearch-forward` 启动，边输入边在正文中查找；搜索中 `C-s/C-r` 前后查找、`RET` 结束。本配置编辑区的 `C-s` 已改成列出匹配行的 Consult Line。
+- 候选中按 `C-.` 打开 Embark 操作菜单，如复制路径、文件操作；`M-.` 执行上下文默认动作，不是定义跳转。代码定义/引用仍用 `g d/g r`。
+
+**Wgrep 批量修改：** `M-s r` 搜索 → `C-. E`（`embark-export`）导出 grep 结果 → `M-x wgrep-change-to-wgrep-mode` → 编辑结果正文 → `C-c C-c` 应用，或 `C-c C-k` 取消未应用修改。结果中的 `RET` 可访问源位置。
+
+**确认 Wgrep 会自动保存修改到的源文件**，请检查 Git diff；代码变量改名优先用 `C-c l r`，避免文本替换误改同名变量。
 
 ### 补全、诊断与跳转
 
@@ -140,11 +174,13 @@ M-, / C-M-,        Xref 历史后退 / 前进
 g h / K            悬浮文档 / 回显区简要文档
 C-c l r            重命名
 C-c l a / C-c l f  Code Action / 手动格式化 Buffer
-M-n / M-p          下一个 / 上一个 Flymake 诊断
+M-n / M-p          代码 Buffer 中：当前文件下一个 / 上一个 Flymake 实时诊断
 ```
 
 `C-SPC` 保留 Emacs 的设置标记功能。补全使用 `C-M-i`（Ctrl+Alt+i），
 不用 Alt+Tab，避免 Windows 窗口切换冲突。
+
+C/C++ 的 Eglot 行内提示默认关闭；用 `M-x eglot-inlay-hints-mode` 在当前 Buffer 手动开关参数名、类型、数组下标等提示，不影响补全和诊断。重新进入 Eglot 管理状态时再次按默认规则关闭；其他语言不受此配置影响。
 
 ### 项目、Git 与文件管理
 
@@ -156,6 +192,15 @@ C-x g              Magit Status
 M-g n / M-g p      下一个 / 上一个编译错误
 M-!                在当前目录执行 Shell 命令
 C-x d / C-x C-j    打开 Dired / 定位当前文件所在目录
+```
+
+项目默认主要按 Git 等版本控制识别，仅有 C++ 文件或 `CMakeLists.txt` 不保证被识别。`C-c p f` 先询问目录通常表示未识别项目，可选择普通目录临时使用。编译命令的构建文件检测与项目识别是两套逻辑。
+
+在目标文件/Dired 中按 `M-:` 执行下式，返回项目根或 `nil`；`M-: default-directory` 查看当前 Buffer 的目录：
+
+```elisp
+(when-let ((project (project-current nil)))
+  (project-root project))
 ```
 
 ### Dired 常用操作
@@ -196,9 +241,12 @@ i / a / Esc        插入 / 光标后插入 / 返回普通状态
 v / V / C-v        字符 / 行 / 矩形可视选区
 u / C-r            撤销 / 重做（内置 undo-redo 后端）
 C-x u              Vundo 可视化撤销历史
+y / p / P          可视选区中：复制 / 替换并收集被替换内容 / 替换且保留粘贴来源
 ysiw)              为当前单词添加括号
 cs"' / ds"         将双引号改成单引号 / 删除双引号
 ```
+
+沿用 Evil 默认粘贴规则：Visual `p` 会使被替换文本成为下一次默认粘贴内容；连续用同一段文字替换多个选区时用大写 `P`。这里的 `P` 说明仅针对可视状态。
 
 ### 矩形编辑
 
@@ -280,11 +328,13 @@ Agenda 读取 Inbox、Work、Personal、Calendar；编辑正文请回源文件�
 - Tree-sitter grammar 用 `M-x treesit-auto-install-all` 安装；与平台和 ABI 绑定，不要跨机器同步 `tree-sitter/`。
 - 本机差异放入不提交的 `local.el`，参考 [local.example.el](local.example.el) 设置包源、工具路径、Org 目录和 Shell。
 - GUI 的中文和图标需要对应字体；TTY 没有额外的系统剪贴板桥接。
+- TTY 默认启用内置 `xterm-mouse-mode`，支持的终端可将点击、滚轮等鼠标事件交给 Emacs；终端自身的文本选择通常可按住 Shift 绕过鼠标捕获，具体取决于终端设置。用 `M-x xterm-mouse-mode` 可临时关闭。
 
 ### 字体与显示排查
 
 GUI 按 `lisp/init-ui.el` 的字体候选列表选择已安装字体；TTY 使用终端自身的字体。
 主文本大小由 `my/buffer-font-height` 控制，界面文字由 `my/ui-font-height` 控制。
+终端选区、光标及当前行的颜色修复限定在对应 TTY Frame，并在切换主题后重新应用，不覆盖同一 daemon 中 GUI Frame 的主题颜色。
 
 字符太细、颜色不清或疑似回退字体时，把光标放在字符上执行 `M-x describe-char`，
 查看实际字体与 face；可在 `M-x set-frame-font` 临时比较其他字体。不要把代码中的 ASCII `-`
@@ -297,6 +347,15 @@ GUI 按 `lisp/init-ui.el` 的字体候选列表选择已安装字体；TTY 使�
 - 本机需要 OpenSSH、Git、SCP；远端为支持的 x86_64/aarch64 Linux 或 macOS。首次 RPC 连接需从 GitHub 下载 server。
 - 语言服务器和编译工具装在远端；远程 clangd 不携带本机 `g++` 路径，本地 Unix 才按需设置 `--query-driver`。
 - Windows 连接 WSL：先在 WSL 启动 SSH 服务并配置公钥登录，再访问 `/rpc:user@localhost:/home/user/project`。非默认端口写作 `host#端口`。
+
+### 自动保存、备份与崩溃恢复
+
+- **未保存编辑的恢复副本**：文件 Buffer 默认使用 Emacs 自动保存，配置为闲置约 15 秒或输入约 200 个事件后触发（并非严格定时保证）。副本集中在 `user-emacs-directory` 下的 `auto-save/`，恢复会话列表为其中的 `.saves-*`；不会自动覆盖原文件。
+- **崩溃后恢复**：先用 `M-x recover-session` 查看可恢复会话；也可用 `M-x recover-file` 按原文件路径恢复单个文件。核对恢复内容后再保存。恢复的是最近一次成功写出的副本，不保证包含崩溃前最后几次输入。
+- **保存前备份**：集中在 `backups/`，使用编号备份，保留最旧 5 份与最新 10 份，自动删除超出保留范围的版本。采用复制方式，避免备份操作移动原文件而影响硬链接。
+- **备份边界**：沿用 Emacs 默认策略，版本控制管理的文件通常不生成保存前备份；Git 只能恢复已提交/已保存到 Git 对象中的内容，不能替代未保存编辑的恢复副本。同一次访问文件期间通常仅首次保存生成备份，不是每次 `C-x C-s` 都保留一个版本。
+- **注意事项**：大幅删除可能触发 Emacs 的自动保存保护并暂停该 Buffer 的自动保存；无文件关联的临时 Buffer 不保证自动恢复。Vundo/undo-redo 的撤销历史目前不持久化，重启后不能靠它找回编辑过程。
+- 恢复目录不提交 Git；可能含源代码、笔记或其他敏感内容，应保留合适的目录权限，并纳入独立的磁盘/系统备份。它们与原文件若在同一磁盘，不能防磁盘损坏。远程和加密文件还受对应文件处理器策略影响。
 
 ### 大文件保护与维护
 
