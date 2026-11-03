@@ -130,7 +130,7 @@ purpose: Lisp indentation belongs to each form's own indent rule.")
   :ensure nil
   :hook (prog-mode . whitespace-mode)
   :custom
-  (whitespace-style '(face trailing tabs tab-mark
+  (whitespace-style '(face tabs tab-mark
                           space-before-tab space-after-tab)))
 
 (defun my/indent-bars-maybe-enable ()

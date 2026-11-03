@@ -276,6 +276,29 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
 Runs for every theme switch, including `M-x load-theme' and `consult-theme'."
   ;; `user' and `use-package' are settings pseudo-themes, not color themes.
   (unless (memq theme '(user use-package))
+    ;; Store overrides in Chyla itself, not in the higher-priority user theme,
+    ;; so disabling Chyla restores the next theme's own face definitions.
+    (when (eq theme 'chyla-dark)
+      (let ((custom--inhibit-theme-enable nil))
+        (custom-theme-set-faces
+         'chyla-dark
+         '(default ((((type graphic)) (:background "#282c34" :foreground "#dddddd"))
+                    (t (:background "#121212" :foreground "#dddddd"))))
+         '(hl-line ((t (:background "#353b45"))))
+         '(cursor ((t (:background "#FF9800"))))
+         '(region ((t (:background "#3e5c76")))))))
+    (when (eq theme 'flatfluc)
+      (let ((custom--inhibit-theme-enable nil))
+        (custom-theme-set-faces
+         'flatfluc
+         '(default ((((type graphic)) (:background "#E5EAF0" :foreground "#425d78"))
+                    (t (:background "#ecf0f1" :foreground "#425d78")))))))
+    (when (eq theme 'amaranth-dark)
+      (let ((custom--inhibit-theme-enable nil))
+        (custom-theme-set-faces
+         'amaranth-dark
+         '(default ((((type graphic)) (:background "#282c34" :foreground "#e4e4ef"))
+                    (t (:background "#000000" :foreground "#e4e4ef")))))))
     (my/setup-font)
     (my/tab-line-remove-borders)
     (my/apply-ui-font-size)))

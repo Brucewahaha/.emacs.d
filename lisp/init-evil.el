@@ -144,11 +144,16 @@ Otherwise kill it, asking about unsaved changes unless FORCE is non-nil."
   (let ((frame (or frame (selected-frame))))
     (when (and (frame-live-p frame) (not (display-graphic-p frame)))
       (set-face-attribute 'region frame
-                          :background "#555555"
-                          :foreground "white")
-      (set-frame-parameter frame 'cursor-color "#FF0000")
+                          :background (if (eq (car custom-enabled-themes) 'chyla-dark)
+                                          "#3e5c76" "#555555")
+                          :foreground (if (eq (car custom-enabled-themes) 'chyla-dark)
+                                          'unspecified "white"))
+      (set-frame-parameter frame 'cursor-color
+                           (if (eq (car custom-enabled-themes) 'chyla-dark)
+                               "#FF9800" "#FF0000"))
       (set-face-attribute 'hl-line frame
-                          :background "#333333"
+                          :background (if (eq (car custom-enabled-themes) 'chyla-dark)
+                                          "#353b45" "#333333")
                           :underline nil))))
 
 (add-hook 'tty-setup-hook 'my/fix-terminal-faces)

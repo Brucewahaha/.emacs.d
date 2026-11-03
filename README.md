@@ -55,8 +55,11 @@ F3 / M-s h u       用内置 Hi Lock 高亮当前符号 / 取消高亮
 
 - **缩进**：项目的 `.editorconfig` / 局部变量优先，其次检测文件已有缩进，否则默认 4 格。通常用空格，Makefile / Go 等按语言规则使用 Tab；C/C++ 默认 BSD/Allman 风格。保存时不自动格式化。
 - **补全**：输入 2 个字符后等待 0.2 秒弹出；手动触发见下方。Cape 的文本候选只扫描当前 Buffer。
-- **显示**：普通空格不显示圆点；标记 Tab、行尾空白和特定空格/Tab 混用情况，仅提示、不自动清理。Tab 在 Makefile 等文件中可以是合法内容。竖线高亮当前语法作用域，光标在行首空白中也按本行语句识别。括号自动配对，Lisp 由 Paredit 管理。
+- **显示**：普通空格不显示圆点，不专门标记行尾空白；保留 Tab 和特定空格/Tab 混用提示，不自动清理。Tab 在 Makefile 等文件中可以是合法内容。竖线高亮当前语法作用域，光标在行首空白中也按本行语句识别。括号自动配对，Lisp 由 Paredit 管理。
 - **主题**：默认 `chyla-dark`，备选 `amaranth-dark`（`M-x load-theme`），浅色 `flatfluc`。从任一深色主题切换到浅色后，再切回默认深色。
+- **Chyla 定制**：仅 GUI 背景采用 One Dark 的 `#282c34`，TTY 保留原主题背景；当前行为 `#353b45`，选区为蓝色 `#3e5c76`，光标为橙色 `#FF9800`。仅作用于 Chyla，代码语法配色保持原样。TTY 实际颜色及光标颜色受终端能力影响。
+- **Flatfluc 定制**：仅 GUI 背景改为 `#E5EAF0`，TTY 保留原主题配色。
+- **Amaranth Dark 定制**：仅 GUI 背景采用 One Dark 的 `#282c34`，TTY 保留原背景。
 - **Paredit**：Lisp/Scheme 等 Buffer 中保留 `M-s` 为搜索前缀；`C-c s` 执行 `paredit-splice-sexp`（去掉包围当前表达式的外层结构，保留其内容）。
 
 ### 标签、窗口与退出
