@@ -65,7 +65,17 @@ Cache the font list per frame, not globally across daemon displays."
   (let ((special-p (my/special-buffer-p)))
     (seq-filter (lambda (buffer)
                   (eq special-p (my/special-buffer-p buffer)))
-                (tab-line-tabs-fixed-window-buffers))))
+                 (tab-line-tabs-fixed-window-buffers))))
+
+(defun my/tab-line-mouse-move-tab (event)
+  "Reorder tabs in one window while retaining our grouped tab list."
+  (interactive "e")
+  ;; The built-in drag command checks the function's identity, although our
+  ;; grouped list uses exactly the same window-local ordering underneath.
+  (let ((tab-line-tabs-function #'tab-line-tabs-fixed-window-buffers))
+    (tab-line-mouse-move-tab event)))
+
+(global-set-key [tab-line drag-mouse-1] #'my/tab-line-mouse-move-tab)
 (defun my/tab-line-tab-name (buffer buffers)
   "返回 BUFFER 的编号和截断后的标签名称。"
   (format "%d %s%s"

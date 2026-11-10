@@ -188,19 +188,20 @@ Otherwise kill it, asking about unsaved changes unless FORCE is non-nil."
   (global-evil-surround-mode 1))
 
 (defun my/comment-dwim ()
-  "Comment the visual region without including its trailing line boundary."
+  "Toggle comments on whole lines touched by the region, or the current line."
   (interactive)
-  (if (and (bound-and-true-p evil-local-mode)
-           (evil-visual-state-p)
-           (region-active-p))
-      (let ((beginning (region-beginning))
-            (end (region-end)))
-        ;; Linewise Visual selections end at the following line's beginning.
-        (when (and (> end beginning)
-                   (save-excursion (goto-char end) (bolp)))
-          (setq end (1- end)))
-        (comment-or-uncomment-region beginning end))
-    (comment-line)))
+  (let* ((active (use-region-p))
+         (beginning (if active (region-beginning) (point)))
+         (end (if active (region-end) (point))))
+    (save-excursion
+      (goto-char beginning)
+      (setq beginning (line-beginning-position))
+      (goto-char end)
+      ;; A region ending at the next line's beginning excludes that line.
+      (when (and active (> end beginning) (bolp))
+        (backward-char))
+      (setq end (line-end-position))
+      (comment-or-uncomment-region beginning end))))
 
 (use-package emacs
   :bind* ("C-/" . my/comment-dwim))
