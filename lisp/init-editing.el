@@ -66,10 +66,21 @@ purpose: Lisp indentation belongs to each form's own indent rule.")
   (setq c-default-style
         '((java-mode . "java") (awk-mode . "awk") (other . "my-bsd"))))
 
-(setq tab-always-indent 'complete)
+(setq tab-always-indent t)
+
+(defun my/current-indent-width ()
+  "Return the current language's effective indentation width."
+  (or (seq-some (lambda (variable)
+                  (when (and (local-variable-p variable)
+                             (boundp variable)
+                             (integerp (symbol-value variable))
+                             (> (symbol-value variable) 0))
+                    (symbol-value variable)))
+                my/indent-offset-variables)
+      tab-width))
 
 (defun my/tab-dwim ()
-  "Confirm an active Corfu candidate, otherwise indent or complete."
+  "Confirm a Corfu candidate, or insert one indentation unit at point."
   (interactive)
   ;; Evil's Insert-state map takes precedence over Corfu's popup map.
   (if (and (bound-and-true-p completion-in-region-mode)
@@ -77,10 +88,10 @@ purpose: Lisp indentation belongs to each form's own indent rule.")
            corfu--candidates
            (fboundp 'corfu-insert))
       (corfu-insert)
-    (call-interactively #'indent-for-tab-command)))
+    (indent-to (+ (current-column) (my/current-indent-width)))))
 
 (defun my/setup-prog-indentation ()
-  "Make TAB indent by syntax, or complete once the line is already indented."
+  "Make TAB insert indentation at point, or accept an active Corfu candidate."
   (local-set-key (kbd "TAB") #'my/tab-dwim)
   (local-set-key (kbd "<tab>") #'my/tab-dwim)
   (when (fboundp 'evil-local-set-key)
