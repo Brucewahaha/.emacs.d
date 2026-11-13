@@ -189,12 +189,14 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
 (global-tab-line-mode 1)
 
 (defun my/tab-line-remove-borders ()
-  "Remove Tab Line borders while leaving its colors to the current theme."
+  "Remove Tab Line borders and use a flat light-gray highlight."
   (interactive)
   (dolist (face '(tab-line tab-line-tab tab-line-tab-current
                    tab-line-tab-inactive tab-line-tab-modified
                    tab-line-highlight tab-line-close-highlight))
     (set-face-attribute face nil :box nil))
+  (set-face-attribute 'tab-line-highlight nil
+                      :background "grey85" :foreground "black" :box nil)
   (tab-line-force-update t))
 
 (defun my/reset-tab-line-faces ()
