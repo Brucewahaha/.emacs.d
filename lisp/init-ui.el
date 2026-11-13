@@ -2,29 +2,39 @@
 ;; 1. 基础界面清理
 (setq confirm-kill-emacs #'yes-or-no-p
       use-dialog-box nil)
-(defconst my/programming-font-families
+(defcustom my/programming-font-families
   '("CaskaydiaMono Nerd Font Mono" "0xProto Nerd Font Mono" "Cascadia Mono" "JetBrains Mono"
     "Menlo" "Monaco" "Consolas" "Liberation Mono"
     "DejaVu Sans Mono" "monospace")
-  "Preferred programming font families, ordered by preference.")
-(defconst my/cjk-font-families
+  "Preferred programming font families, ordered by preference."
+  :type '(repeat string)
+  :group 'faces)
+(defcustom my/cjk-font-families
   '("Maple Mono Normal NF CN"
     "Source Han Sans SC"
     "Microsoft YaHei"
     "Noto Sans SC"
     "PingFang SC")
-  "Preferred CJK font families, ordered by preference.")
-(defconst my/nerd-font-families
+  "Preferred CJK font families, ordered by preference."
+  :type '(repeat string)
+  :group 'faces)
+(defcustom my/nerd-font-families
   '("Symbols Nerd Font Mono" "CaskaydiaMono Nerd Font Mono" "0xProto Nerd Font Mono")
-  "Font families that provide the Nerd Font private-use glyphs.")
-(defconst my/symbol-font-families
+  "Font families that provide the Nerd Font private-use glyphs."
+  :type '(repeat string)
+  :group 'faces)
+(defcustom my/symbol-font-families
   '("Segoe UI Symbol" "Apple Symbols" "Noto Sans Symbols 2"
     "Noto Sans Symbols" "DejaVu Sans")
-  "Preferred fonts for standard Unicode symbols.")
-(defconst my/emoji-font-families
+  "Preferred fonts for standard Unicode symbols."
+  :type '(repeat string)
+  :group 'faces)
+(defcustom my/emoji-font-families
   '("Segoe UI Emoji" "Apple Color Emoji" "Noto Color Emoji"
     "Noto Emoji")
-  "Preferred fonts for Emoji characters.")
+  "Preferred fonts for Emoji characters."
+  :type '(repeat string)
+  :group 'faces)
 (defcustom my/ui-font-height 130
   "UI font height in 1/10 point."
   :type 'integer
@@ -33,6 +43,19 @@
   "Main Buffer text height in 1/10 point."
   :type 'integer
   :group 'faces)
+(defcustom my/initial-frame-settings nil
+  "Initial GUI frame parameters, such as width, height and fullscreen.
+Applied once to each graphical frame after its fonts are configured."
+  :type '(alist :key-type symbol :value-type sexp)
+  :group 'frames)
+
+(defun my/apply-initial-frame-settings ()
+  "Apply machine-local sizing once to the selected graphical frame."
+  (when (and (display-graphic-p)
+             (not (frame-parameter nil 'my/initial-settings-applied)))
+    (modify-frame-parameters nil my/initial-frame-settings)
+    (set-frame-parameter nil 'my/initial-settings-applied t)))
+
 (defun my/available-font (families)
   "Return the first installed member of FAMILIES on the selected frame.
 Cache the font list per frame, not globally across daemon displays."
@@ -356,7 +379,8 @@ Runs for every theme switch, including `M-x load-theme' and `consult-theme'."
     (when (display-graphic-p)
       (my/setup-font)
       (my/apply-ui-font-size)
-      (my/setup-icons))))
+      (my/setup-icons)
+      (my/apply-initial-frame-settings))))
 
 (add-hook 'after-make-frame-functions #'my/setup-graphical-frame)
 (add-hook 'window-setup-hook #'my/setup-graphical-frame)

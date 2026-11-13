@@ -337,7 +337,10 @@ Agenda 读取 Inbox、Work、Personal、Calendar；编辑正文请回源文件�
 
 - 使用 Emacs 30.1，安装 Git、`rg`；按需安装 `clangd`、`basedpyright`、`gopls`、`rust-analyzer` 等语言服务器。
 - Tree-sitter grammar 用 `M-x treesit-auto-install-all` 安装；与平台和 ABI 绑定，不要跨机器同步 `tree-sitter/`。
-- 本机差异放入不提交的 `local.el`，参考 [local.example.el](local.example.el) 设置包源、工具路径、Org 目录和 Shell。
+- 首次可复制 [local.example.el](local.example.el) 为 `local.el`，只取消需要覆盖的示例注释；已有 `local.el` 时不要覆盖。它在各模块前加载且被 Git 忽略，push/pull 不同步本机设置；共享配置仍保留默认值。
+- 本机设置包括字体优先列表、包源、工具路径、Org 目录和 Shell。`my/buffer-font-height` 控制正文，`my/ui-font-height` 控制 Mode Line、标签栏、Header Line、minibuffer 和提示文字；`140` 表示 14 pt，不控制系统标题栏。字体设置用于 GUI，终端字体由终端程序设置。修改后重启 Emacs（daemon 也需重启）。
+- `my/initial-frame-settings` 可设为 `'((width . 120) (height . 40))`（列/行）或 `'((fullscreen . maximized))`（最大化）。每个新 GUI Frame（含 daemon 客户端）配置字体后应用一次，不改终端大小；默认不指定，由 Emacs/窗口管理器决定，最终尺寸仍受桌面环境限制。
+- `M-x my/check-local-environment` 只读显示本机配置路径、字号、Frame 字体/尺寸、Org 目录和 Git、rg、语言服务器路径；可选服务器未安装不代表配置错误。工具路径按调用处环境查询，不检查远端，也不自动安装或修改设置。
 - GUI 的中文和图标需要对应字体；TTY 没有额外的系统剪贴板桥接。
 - TTY 默认启用内置 `xterm-mouse-mode`，支持的终端可将点击、滚轮等鼠标事件交给 Emacs；终端自身的文本选择通常可按住 Shift 绕过鼠标捕获，具体取决于终端设置。用 `M-x xterm-mouse-mode` 可临时关闭。
 

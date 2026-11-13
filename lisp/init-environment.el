@@ -61,5 +61,39 @@
   (define-key envrc-mode-map (kbd "C-c e") #'envrc-command-map)
   (add-hook 'after-init-hook #'envrc-global-mode))
 
+(defun my/check-local-environment ()
+  "Show local configuration and tool paths without changing the environment."
+  (interactive)
+  (let* ((frame (selected-frame))
+         (graphic (display-graphic-p frame))
+         (tools (mapcar (lambda (tool) (cons tool (executable-find tool)))
+                        '("git" "rg" "clangd" "basedpyright-langserver"
+                          "gopls" "rust-analyzer")))
+         (variables '(my/buffer-font-height my/ui-font-height
+                      my/initial-frame-settings org-directory
+                      my/extra-exec-paths my/preferred-shell)))
+    (with-help-window "*Local Environment*"
+      (princ (format "Emacs %s | %s | %s\n\n"
+                     emacs-version system-type (if graphic "GUI" "Terminal")))
+      (princ (format "Local configuration: %s (%s)\n\n"
+                     my/local-config-file
+                     (if (file-exists-p my/local-config-file) "exists" "absent")))
+      (princ "Settings (font heights are in 1/10 point):\n")
+      (dolist (variable variables)
+        (princ (format "  %s: %S\n" variable
+                       (if (boundp variable) (symbol-value variable) 'not-loaded))))
+      (princ (format "\nSelected frame: %s columns x %s rows; fullscreen=%S\n"
+                     (frame-width frame) (frame-height frame)
+                     (frame-parameter frame 'fullscreen)))
+      (if graphic
+          (dolist (face '(default mode-line tab-line))
+            (princ (format "  %s font: %S\n" face
+                           (face-attribute face :font frame t))))
+        (princ "  Fonts are controlled by the terminal application.\n"))
+      (princ "\nExecutable paths (missing optional servers are not errors):\n")
+      (dolist (tool tools)
+        (princ (format "  %s: %s\n" (car tool) (or (cdr tool) "NOT FOUND"))))
+      (princ "\nPaths reflect this buffer's environment; remote tools are not checked.\n"))))
+
 (provide 'init-environment)
 ;;; init-environment.el ends here
