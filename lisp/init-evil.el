@@ -145,7 +145,7 @@ Otherwise kill it, asking about unsaved changes unless FORCE is non-nil."
     (when (and (frame-live-p frame) (not (display-graphic-p frame)))
       (set-face-attribute 'region frame
                           :background (if (eq (car custom-enabled-themes) 'chyla-dark)
-                                          "#3e5c76" "#555555")
+                                          "#3e4776" "#555555")
                           :foreground (if (eq (car custom-enabled-themes) 'chyla-dark)
                                           'unspecified "white"))
       (set-frame-parameter frame 'cursor-color

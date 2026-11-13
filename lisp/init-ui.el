@@ -192,16 +192,16 @@ metrics can clip Nerd Font glyphs there.  Other uses of Nerd Font stay enabled."
   "Remove Tab Line borders while leaving its colors to the current theme."
   (interactive)
   (dolist (face '(tab-line tab-line-tab tab-line-tab-current
-                  tab-line-tab-inactive tab-line-tab-modified
-                  tab-line-close-highlight))
+                   tab-line-tab-inactive tab-line-tab-modified
+                   tab-line-highlight tab-line-close-highlight))
     (set-face-attribute face nil :box nil))
   (tab-line-force-update t))
 
 (defun my/reset-tab-line-faces ()
   "Clear old direct Tab Line face attributes before loading a theme."
   (dolist (face '(tab-line tab-line-tab tab-line-tab-current
-                  tab-line-tab-inactive tab-line-tab-modified
-                  tab-line-close-highlight))
+                   tab-line-tab-inactive tab-line-tab-modified
+                   tab-line-highlight tab-line-close-highlight))
     (face-spec-reset-face face)))
 
 (defun my/apply-ui-font-size ()
@@ -296,7 +296,7 @@ Runs for every theme switch, including `M-x load-theme' and `consult-theme'."
                     (t (:background "#121212" :foreground "#dddddd"))))
          '(hl-line ((t (:background "#353b45"))))
          '(cursor ((t (:background "#FF9800"))))
-         '(region ((t (:background "#3e5c76")))))))
+          '(region ((t (:background "#3e4776")))))))
     (when (eq theme 'flatfluc)
       (let ((custom--inhibit-theme-enable nil))
         (custom-theme-set-faces
