@@ -74,6 +74,56 @@
   (setq aw-scope 'frame))
 
 ;; 4. Transpose-frame: 旋轉佈局 (Doom 的 SPC w r)
+(defun my/buffer-move-window-p (window)
+  "Return non-nil if WINDOW is an ordinary buffer-move endpoint."
+  (and (window-live-p window)
+       (not (window-minibuffer-p window))
+       (not (window-dedicated-p window))
+       (not (window-parameter window 'window-side))
+       (not (window-parameter window 'no-other-window))
+       (with-current-buffer (window-buffer window)
+         (not (or (derived-mode-p 'treemacs-mode)
+                  (my/popper-buffer-p))))))
+
+(defun my/move-buffer-to-window ()
+  "Move this buffer and tab to another ordinary window in this frame."
+  (interactive)
+  (require 'ace-window)
+  (let* ((source (selected-window))
+         (buffer (window-buffer source))
+         (point (window-point source))
+         (start (window-start source))
+         (targets (seq-filter
+                   (lambda (window)
+                     (and (not (eq window source))
+                          (my/buffer-move-window-p window)))
+                   (window-list))))
+    (unless (my/buffer-move-window-p source)
+      (user-error "Move buffers from an ordinary editing window"))
+    (unless targets
+      (user-error "No other ordinary window in this frame"))
+    (let* ((aw-scope 'frame)
+           (aw-dispatch-alist nil)
+           (target (if (= (length targets) 1)
+                       (car targets)
+                     (cl-letf (((symbol-function 'aw-window-list)
+                                (lambda () targets)))
+                       (aw-select " Move buffer to window")))))
+      (unless (memq target targets)
+        (user-error "No target window selected"))
+      (with-selected-window target
+        (switch-to-buffer buffer)
+        (goto-char point)
+        (set-window-start target start)
+        (tab-line-tabs-fixed-window-buffers))
+      ;; The destination now displays BUFFER, so closing it at the source only
+      ;; detaches the tab; the existing shared-buffer logic never kills it.
+      (with-selected-window source
+        (my/close-current-window-buffer)
+        (set-window-parameter source 'tab-line-cache nil))
+      (select-window target)
+      (force-mode-line-update t))))
+
 (use-package transpose-frame
   :ensure t)
 
@@ -84,6 +134,7 @@
   (define-key evil-window-map (kbd "u") 'winner-undo)
   (define-key evil-window-map (kbd "C-r") 'winner-redo)
   (define-key evil-window-map (kbd "o") 'ace-window)
+  (define-key evil-window-map (kbd "m") #'my/move-buffer-to-window)
   (define-key evil-window-map (kbd "r") 'transpose-frame))
 
 (provide 'init-window)
